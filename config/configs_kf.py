@@ -10,7 +10,7 @@ class agriculture_configs(object):
     # data set parameters
     dataset = 'Agriculture'
     bands = ['NIR', 'RGB']
-    loader = AlgricultureDataset
+    loader = AgricultureDataset
     labels = land_classes
     nb_classes = len(land_classes)
     palette = palette_vsl #palette_vsl

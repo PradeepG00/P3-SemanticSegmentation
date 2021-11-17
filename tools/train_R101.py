@@ -7,7 +7,7 @@ import sys
 import time
 
 import torchvision.utils as vutils
-from lib.loss.acw_loss import *
+from lib.loss.acwloss import *
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.backends import cudnn
@@ -40,7 +40,7 @@ train_args.node_size = (32, 32)
 train_args.train_batch = 7
 train_args.val_batch = 7
 
-train_args.lr = 2.18e-4/np.sqrt(3)
+train_args.lr = 2.18e-4 / np.sqrt(3)
 train_args.weight_decay = 2e-5
 
 train_args.lr_decay = 0.9
@@ -83,7 +83,7 @@ def main():
     train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
     val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
 
-    criterion = ACW_loss().cuda()
+    criterion = ACWLoss().cuda()
 
     params = init_params_lr(net, train_args)
 

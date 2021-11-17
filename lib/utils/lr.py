@@ -4,15 +4,15 @@ import math
 
 def init_params_lr(net, opt):
     bias_params = []
-    nonbias_params = []
+    unbiased_params = []
     for key, value in dict(net.named_parameters()).items():
         if value.requires_grad:
             if 'bias' in key:
                 bias_params.append(value)
             else:
-                nonbias_params.append(value)
+                unbiased_params.append(value)
     params = [
-        {'params': nonbias_params,
+        {'params': unbiased_params,
          'lr': opt.lr,
          'weight_decay': opt.weight_decay},
         {'params': bias_params,
@@ -37,7 +37,7 @@ def adjust_learning_rate(optimizer, i_iter, opt):
 
 
 def lr_cos(base_lr, iter, max_iter):
-    return base_lr*(1+math.cos(math.pi * iter / max_iter)) / 2.0
+    return base_lr * (1 + math.cos(math.pi * iter / max_iter)) / 2.0
 
 
 def adjust_initial_rate(optimizer, i_iter, opt, model='cos'):

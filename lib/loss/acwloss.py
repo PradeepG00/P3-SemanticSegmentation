@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ACW_loss(nn.Module):
-    def __init__(self,  ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
-        super(ACW_loss, self).__init__()
+class ACWLoss(nn.Module):
+    def __init__(self, ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
+        super(ACWLoss, self).__init__()
         self.ignore_index = ignore_index
         self.weight = ini_weight
         self.itr = ini_iteration
@@ -27,7 +27,6 @@ class ACW_loss(nn.Module):
 
         pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
         loss_pnc = torch.sum(acw * pnc, 1)
-
 
         intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
         union = pred + one_hot_label
@@ -69,4 +68,3 @@ class ACW_loss(nn.Module):
         else:
             one_hot_label.scatter_(1, target.unsqueeze(1), 1)
             return one_hot_label, None
-

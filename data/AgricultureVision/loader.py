@@ -10,7 +10,7 @@ cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 
 
-class AlgricultureDataset(Dataset):
+class AgricultureDataset(Dataset):
     def __init__(self, mode='train', file_lists=None, windSize=(256, 256),
                  num_samples=10000, pre_norm=False, scale=1.0 / 1.0):
         assert mode in ['train', 'val', 'test']
@@ -21,7 +21,7 @@ class AlgricultureDataset(Dataset):
         self.scale = scale
         self.all_ids = file_lists['all_files']
         self.image_files = file_lists[IMG]  # image_files = [[bands1, bands2,..], ...]
-        self.mask_files = file_lists[GT]    # mask_files = [gt1, gt2, ...]
+        self.mask_files = file_lists[GT]  # mask_files = [gt1, gt2, ...]
 
     def __len__(self):
         return len(self.all_ids)
@@ -104,4 +104,3 @@ class AlgricultureDataset(Dataset):
         mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         norm = standard_transforms.Compose([standard_transforms.Normalize(*mean_std)])
         return norm(img)
-

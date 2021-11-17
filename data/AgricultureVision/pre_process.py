@@ -10,7 +10,9 @@ from sklearn.model_selection import train_test_split, KFold
 import cv2
 
 # change DATASET ROOT to your dataset path
-DATASET_ROOT = 'Users\Klarissa\Downloads\Agriculture-Vision-2021.tar\Agriculture-Vision-2021'
+DATASET_ROOT = ''
+if not os.path.exists(DATASET_ROOT):
+    raise Exception("Dataset path not found")
 
 TRAIN_ROOT = os.path.join(DATASET_ROOT, 'train')
 VAL_ROOT = os.path.join(DATASET_ROOT, 'val')
@@ -93,7 +95,7 @@ def is_image(filename):
 
 def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
     if not os.path.exists(os.path.join(root_folder, out_path)):
-        print('----------creating groundtruth data for training./.val---------------')
+        print('----------creating ground-truth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
         basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder,'images/rgb'))]
         gt = basname[0]+'.png'

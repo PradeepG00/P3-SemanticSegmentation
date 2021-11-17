@@ -7,7 +7,7 @@ import sys
 import time
 
 import torchvision.utils as vutils
-from lib.loss.acw_loss import *
+from lib.loss.acwloss import *
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.backends import cudnn
@@ -50,7 +50,7 @@ train_args.snapshot = ''
 train_args.print_freq = 100
 train_args.save_pred = False
 # output training configuration to a text file
-train_args.ckpt_path=os.path.abspath(os.curdir)
+train_args.ckpt_path = os.path.abspath(os.curdir)
 
 writer = SummaryWriter(os.path.join(train_args.save_path, 'tblog'))
 visualize, restore = get_visualize(train_args)
@@ -83,8 +83,7 @@ def main():
     train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
     val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
 
-
-    criterion = ACW_loss().cuda()
+    criterion = ACWLoss().cuda()
 
     params = init_params_lr(net, train_args)
     # first train with Adam for around 10 epoch, then manually change to SGD
@@ -93,7 +92,6 @@ def main():
     # base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
     optimizer = Lookahead(base_optimizer, k=6)
     # optimizer = AdaX(params)
-
 
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
 
