@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as standard_transforms
 
-from data.AgricultureVision.pre_process import *
+from data.AgricultureVision.preprocess import *
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)

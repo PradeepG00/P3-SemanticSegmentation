@@ -6,13 +6,19 @@ from __future__ import unicode_literals
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split, KFold
+from dotenv import load_dotenv
 
+load_dotenv()
 import cv2
 
 # change DATASET ROOT to your dataset path
-DATASET_ROOT = ''
+
+# DATASET_ROOT = os.getenv["DATASET_ROOT"]
+DATASET_ROOT = '/content/drive/MyDrive/shortcuts/CS663-MSCG-Net/input/Agriculture-Vision-2021'
 if not os.path.exists(DATASET_ROOT):
     raise Exception("Dataset path not found")
+else:
+    print("Dataset Root Directory:", DATASET_ROOT)
 
 TRAIN_ROOT = os.path.join(DATASET_ROOT, 'train')
 VAL_ROOT = os.path.join(DATASET_ROOT, 'val')
