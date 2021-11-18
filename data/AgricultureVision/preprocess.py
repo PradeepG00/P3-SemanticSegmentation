@@ -6,9 +6,7 @@ from __future__ import unicode_literals
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split, KFold
-from dotenv import load_dotenv
 
-load_dotenv()
 import cv2
 
 # change DATASET ROOT to your dataset path
