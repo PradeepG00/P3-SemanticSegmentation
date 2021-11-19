@@ -58,7 +58,7 @@ Agriculture-Vision
 ### Google Colab
 1. Clone the repository 
 ```
-git clone -b feature/update-2-py39 https://github.com/PradeepG00/P3-SemanticSegmentation.git
+git clone -b feature/py39-dependency-fix https://github.com/PradeepG00/P3-SemanticSegmentation.git
 
 ```
 2. Install the dependencies
