@@ -25,12 +25,12 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 
 ## Dataset prepare
 
-1. change DATASET_ROOT to your dataset path in ./data/AgricultureVision/pre_process.py
+1. Change DATASET_ROOT to your dataset path in `./data/AgricultureVision/pre_process.py`
 ```
 DATASET_ROOT = '/your/path/to/Agriculture-Vision'
 ```
 
-2. keep the dataset structure as the same with the official structure shown as below
+2. Keep the dataset structure as the same with the official structure shown as below
 ```
 Agriculture-Vision
 |-- train
@@ -53,6 +53,44 @@ Agriculture-Vision
 |   |   |-- nir
 |   |   |-- rgb
 |   |-- masks
+```
+## Installation
+### Google Colab
+1. Clone the repository 
+```
+git clone -b feature/update-2-py39 https://github.com/PradeepG00/P3-SemanticSegmentation.git
+
+```
+2. Install the dependencies
+```
+pip install -r requirements.txt
+```
+3. Install the cloned repository as a library
+```
+pip install -e .
+```
+### Local
+1. Run the following for `anaconda` to create a new environment 
+```
+conda create --name py39-mscg-net python=3.9
+```
+2. After creating the environment activate it using 
+```
+conda activate py39-mscg-net
+```
+3. Clone the directory from the "fixed" branch 
+```
+git clone -b feature/update-2-py39 https://github.com/PradeepG00/P3-SemanticSegmentation.git
+```
+
+4. Change directory to the root directory and run the following to install the dependencies
+```bash
+pip install -r requirements.txt
+```
+
+5. Install the repo as a "package" this was the hacky approach to resolving the `lib` module exception
+```bash
+pip install -e .
 ```
 
 ## Train with a single GPU
