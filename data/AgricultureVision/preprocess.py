@@ -85,19 +85,24 @@ IDS = 'IDs'
 
 
 def check_mkdir(dir_name):
+    """Check if directory exists else create the directory"""
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
 
 
 def img_basename(filename):
+    """Get the only the name of the file"""
     return os.path.basename(os.path.splitext(filename)[0])
 
 
 def is_image(filename):
+    """Validate if filepath is an image file"""
     return any(filename.endswith(ext) for ext in ['.png','.jpg'])
 
 
 def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
+    """
+    """
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating ground-truth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
