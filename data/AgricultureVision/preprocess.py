@@ -101,7 +101,7 @@ def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating ground-truth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
-        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder,'images/rgb'))]
+        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder,'images/rgb'))] # breaks here on cloud, likely because there are a whole bunch of images
         gt = basname[0]+'.png'
         for fname in basname:
             gtz = np.zeros((512, 512), dtype=int)
@@ -119,7 +119,7 @@ def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
 
 def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
     dict_list = {}
-    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir'))]
+    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir/'))]
     if count_label:
         for key in labels_folder.keys():
             no_zero_files=[]
