@@ -2,7 +2,7 @@
 ## Introduce
 This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for semantic segmentation in [Agriculture-Vision Challenge and Workshop](https://github.com/SHI-Labs/Agriculture-Vision) (CVPR 2020), and the pipeline of training and testing models, implemented in PyTorch. Please refer to our paper for details:  [Multi-view SelfConstructing Graph Convolutional Networks with Adaptive Class Weighting Loss for Semantic Segmentation](http://openaccess.thecvf.com/content_CVPRW_2020/papers/w5/Liu_Multi-View_Self-Constructing_Graph_Convolutional_Networks_With_Adaptive_Class_Weighting_Loss_CVPRW_2020_paper.pdf)
 
-## Code structure
+## Project File Structure
 
 ```
 ├── config		# config code
@@ -13,7 +13,7 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 
 ```
 
-## Environments
+## Dependencies
 
 - python 3.5+
 - pytorch 1.4.0
@@ -23,7 +23,7 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 - pretrainedmodels 0.7.4
 - others (see requirements.txt)
 
-## Dataset prepare
+## Dataset Preparation
 
 1. Change DATASET_ROOT to your dataset path in `./data/AgricultureVision/pre_process.py`
 ```
