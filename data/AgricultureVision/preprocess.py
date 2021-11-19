@@ -24,6 +24,7 @@ TEST_ROOT = os.path.join(DATASET_ROOT, 'test/images')
 
 
 """
+TODO: likely needs to be updated to reflect the new labels
 In the loaded numpy array, only 0-6 integer labels are allowed, and they represent the annotations in the following way:
 
 0 - background
@@ -65,6 +66,7 @@ labels_folder = {
     'weed_cluster': 6
 }
 
+# TODO: likely needs to be updated to reflect the new
 land_classes = ["background", "cloud_shadow", "double_plant", "planter_skip",
                 "standing_water", "waterway", "weed_cluster"]
 
@@ -101,8 +103,7 @@ def is_image(filename):
 
 
 def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
-    """
-    """
+    """Function for creating the set of ground-truth dataset for the training and validation set"""
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating ground-truth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
@@ -140,7 +141,24 @@ def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
 
 
 def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR','RGB'], KF=3, k=1, seeds=69278):
+    """Method for creating the training, validation and test set
+    
+    Creates 3 dictionaries:
+        - training
+        - validation
+        - test
 
+    Keyword Arguments:
+        data_folder {[type]} -- [description] (default: {Data_Folder})
+        name {str} -- [description] (default: {'Agriculture'})
+        bands {list} -- [description] (default: {['NIR','RGB']})
+        KF {int} -- [description] (default: {3})
+        k {int} -- [description] (default: {1})
+        seeds {int} -- [description] (default: {69278})
+
+    Returns:
+        [type] -- [description]
+    """
     train_id, t_list = get_training_list(root_folder=TRAIN_ROOT, count_label=False)
     val_id, v_list = get_training_list(root_folder=VAL_ROOT, count_label=False)
 
@@ -159,7 +177,7 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
 
     val_folders = [os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name][band]) for band in bands]
     val_gt_folder = os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name]['GT'])
-    #                    {}
+    
     train_dict = {
         IDS: train_id,
         IMG: [[img_folder.format(id) for img_folder in img_folders] for id in t_list] +
