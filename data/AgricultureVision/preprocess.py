@@ -99,7 +99,7 @@ def check_mkdir(dir_name):
 
 
 def img_basename(filename):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    # print(inspect.currentframe().f_code.co_name)  # DEBUG
     
     """Get the only the name of the file"""
     return os.path.basename(os.path.splitext(filename)[0])
