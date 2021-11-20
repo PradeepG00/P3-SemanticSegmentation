@@ -22,8 +22,7 @@ from tools.model import load_model
 
 cudnn.benchmark = True
 
-prepare_gt(VAL_ROOT)
-prepare_gt(TRAIN_ROOT)
+
 
 train_args = agriculture_configs(net_name='MSCG-Rx50',
                                  data='Agriculture',
@@ -69,6 +68,8 @@ def random_seed(seed_value, use_cuda=True):
 
 
 def main():
+    prepare_gt(VAL_ROOT)
+    prepare_gt(TRAIN_ROOT)
     random_seed(train_args.seeds)
     train_args.write2txt()
     net = load_model(name=train_args.model, classes=train_args.nb_classes,
