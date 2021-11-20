@@ -1,4 +1,5 @@
 import cv2
+import inspect
 import numpy as np
 import random
 
@@ -36,6 +37,7 @@ from albumentations import (
 
 
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
@@ -43,6 +45,7 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
 
 
 def imload(filename, gray=False, scale_rate=1.0, enhance=False):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     if not gray:
         image = cv2.imread(filename)  # cv2 read color image as BGR
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # (h, w, 3)
@@ -53,6 +56,7 @@ def imload(filename, gray=False, scale_rate=1.0, enhance=False):
             contrast = ImageEnhance.Contrast(image)
             image = contrast.enhance(1.55)
     else:
+        
         image = cv2.imread(filename, -1)  # read gray image
         if scale_rate != 1.0:
             image = scale(image, scale_rate, interpolation=cv2.INTER_NEAREST)
@@ -62,18 +66,21 @@ def imload(filename, gray=False, scale_rate=1.0, enhance=False):
 
 
 def img_mask_crop(image, mask, size=(256, 256), limits=(224, 512)):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     rc = RandomSizedCrop(height=size[0], width=size[1], min_max_height=limits)
     crops = rc(image=image, mask=mask)
     return crops['image'], crops['mask']
 
 
 def img_mask_pad(image, mask, target=(288, 288)):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     padding = PadIfNeeded(p=1.0, min_height=target[0], min_width=target[1])
     paded = padding(image=image, mask=mask)
     return paded['image'], paded['mask']
 
 
 def composed_augmentation(image, mask):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     aug = Compose([
         VerticalFlip(p=0.5),
         HorizontalFlip(p=0.5),
@@ -95,6 +102,7 @@ def composed_augmentation(image, mask):
 
 
 def get_random_pos(img, window_shape):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     """ Extract of 2D random patch of shape window_shape in the image """
     w, h = window_shape
     W, H = img.shape[-2:]

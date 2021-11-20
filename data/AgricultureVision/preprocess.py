@@ -3,10 +3,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import inspect
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split, KFold
-
+from typing import Dict
 import cv2
 
 # change DATASET ROOT to your dataset path
@@ -44,6 +45,9 @@ palette_land = {
     4 : (0, 0, 255),      # standing_water
     5 : (255, 255, 255),  # waterway
     6 : (0, 255, 255),    # weed_cluster
+    # class-7
+    # class-8
+    # class-9
 }
 
 # customised palette for visualization, easier for reading in paper
@@ -87,22 +91,30 @@ IDS = 'IDs'
 
 
 def check_mkdir(dir_name):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     """Check if directory exists else create the directory"""
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
 
 
 def img_basename(filename):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     """Get the only the name of the file"""
     return os.path.basename(os.path.splitext(filename)[0])
 
 
 def is_image(filename):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     """Validate if filepath is an image file"""
     return any(filename.endswith(ext) for ext in ['.png','.jpg'])
 
 
 def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     """Function for creating the set of ground-truth dataset for the training and validation set"""
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating ground-truth data for training./.val---------------')
@@ -124,8 +136,10 @@ def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
 
 
 def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     dict_list = {}
-    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir/'))]
+    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir'))]
     if count_label:
         for key in labels_folder.keys():
             no_zero_files=[]
@@ -141,6 +155,8 @@ def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
 
 
 def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR','RGB'], KF=3, k=1, seeds=69278):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
     """Method for creating the training, validation and test set
     
     Creates 3 dictionaries:
@@ -204,7 +220,21 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
     return train_dict, val_dict, test_dict
 
 
-def get_real_test_list(root_folder = TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']):
+def get_real_test_list(root_folder = TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']) -> Dict:
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
+    
+    """Function probably for handling for the competition test set
+    TODO: confirm if true or false
+
+    Keyword Arguments:
+        root_folder {[type]} -- [description] (default: {TEST_ROOT})
+        data_folder {[type]} -- [description] (default: {Data_Folder})
+        name {str} -- [description] (default: {'Agriculture'})
+        bands {list} -- [description] (default: {['RGB']})
+
+    Returns:
+        Dict -- [description]
+    """
     dict_list = {}
     basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'nir'))]
     dict_list['all'] = basname

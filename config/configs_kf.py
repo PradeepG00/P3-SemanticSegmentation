@@ -1,11 +1,14 @@
+from typing import Tuple
 import os
 import numpy as np
 import datetime
+import inspect
 
 from data.AgricultureVision.loader import *
 
 
 class agriculture_configs(object):
+    """Class defining the configuration of a training session"""
     model = 'none'
     # data set parameters
     dataset = 'Agriculture'
@@ -48,6 +51,7 @@ class agriculture_configs(object):
     best_record = {}
 
     def __init__(self, net_name=model, data=dataset, bands_list=bands, kf=1, k_folder=5, note=''):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         self.model = net_name
         self.dataset = data
         self.bands = bands_list
@@ -71,9 +75,13 @@ class agriculture_configs(object):
         self.save_path = os.path.join(self.ckpt_path, self.model, subfolder)
 
     def get_file_list(self):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
+        """Function for getting the list of filepaths for the training, validation, and test sets"""
         return split_train_val_test_sets(name=self.dataset, bands=self.bands, KF=self.k_folder, k=self.k, seeds=self.seeds)
 
     def get_dataset(self):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
+        """Function for getting the train, test, validation dataset using the internal DataSet loader"""
         train_dict, val_dict, test_dict = self.get_file_list()
         # split_train_val_test_sets(name=self.dataset,KF=None, k=self.k,seeds=self.seeds)
         train_set = self.loader(mode='train', file_lists=train_dict, pre_norm=self.pre_norm,
@@ -83,7 +91,9 @@ class agriculture_configs(object):
         return train_set, val_set
 
 
-    def resume_train(self, net):
+    def resume_train(self, net) -> Tuple:
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
+        """Function for resuming training for the loaded model"""
         if len(self.snapshot) == 0:
             curr_epoch = 1
             self.best_record = {'epoch': 0, 'val_loss': 0, 'acc': 0, 'acc_cls': 0, 'mean_iu': 0, 'fwavacc': 0,
@@ -102,6 +112,7 @@ class agriculture_configs(object):
 
 
     def print_best_record(self):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         print(
             '[best_ %d]: [val loss %.5f], [acc %.5f], [acc_cls %.5f], [mean_iu %.5f], [fwavacc %.5f], [f1 %.5f]' % (
                 self.best_record['epoch'],
@@ -113,7 +124,8 @@ class agriculture_configs(object):
 
     def update_best_record(self, epoch, val_loss,
                            acc, acc_cls, mean_iu,
-                           fwavacc, f1):
+                           fwavacc, f1) -> bool:
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         print('----------------------------------------------------------------------------------------')
         print('[epoch %d]: [val loss %.5f], [acc %.5f], [acc_cls %.5f], [mean_iu %.5f], [fwavacc %.5f], [f1 %.5f]' % (
             epoch, val_loss, acc, acc_cls, mean_iu, fwavacc, f1))
@@ -132,15 +144,17 @@ class agriculture_configs(object):
         else:
             return False
 
-    def display(self):
+    def display(self)-> None:
         """printout all configuration values."""
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         print("\nConfigurations:")
         for a in dir(self):
             if not a.startswith("__") and not callable(getattr(self, a)):
                 print("{:30} {}".format(a, getattr(self, a)))
         print("\n")
 
-    def write2txt(self):
+    def write2txt(self)-> None:
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         file = open(os.path.join(self.save_path,
                                  str(datetime.datetime.now()) + '.txt'), 'w')
         for a in dir(self):
@@ -150,5 +164,6 @@ class agriculture_configs(object):
 
 
 def check_mkdir(dir_name):
+    print(inspect.currentframe().f_code.co_name)  # DEBUG
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)

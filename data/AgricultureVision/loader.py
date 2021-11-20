@@ -13,6 +13,8 @@ cv2.ocl.setUseOpenCL(False)
 class AgricultureDataset(Dataset):
     def __init__(self, mode='train', file_lists=None, windSize=(256, 256),
                  num_samples=10000, pre_norm=False, scale=1.0 / 1.0):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
+        
         assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.norm = pre_norm
@@ -24,9 +26,12 @@ class AgricultureDataset(Dataset):
         self.mask_files = file_lists[GT]  # mask_files = [gt1, gt2, ...]
 
     def __len__(self):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
+        
         return len(self.all_ids)
 
     def __getitem__(self, idx):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
 
         if len(self.image_files) > 1:
             imgs = []
@@ -49,7 +54,7 @@ class AgricultureDataset(Dataset):
                 image = np.expand_dims(image, 2)
             else:
                 image = imload(filename, scale_rate=self.scale)
-
+        print()
         label = imload(self.mask_files[idx], gray=True, scale_rate=self.scale)
 
         if self.winsize != label.shape:
@@ -73,6 +78,7 @@ class AgricultureDataset(Dataset):
 
     @classmethod
     def train_augmentation(cls, img, mask):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         aug = Compose([
             VerticalFlip(p=0.5),
             HorizontalFlip(p=0.5),
@@ -90,6 +96,7 @@ class AgricultureDataset(Dataset):
 
     @classmethod
     def val_augmentation(cls, img, mask):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         aug = Compose([
             VerticalFlip(p=0.5),
             HorizontalFlip(p=0.5),
@@ -101,6 +108,7 @@ class AgricultureDataset(Dataset):
 
     @classmethod
     def normalize(cls, img):
+        print(inspect.currentframe().f_code.co_name)  # DEBUG
         mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         norm = standard_transforms.Compose([standard_transforms.Normalize(*mean_std)])
         return norm(img)
