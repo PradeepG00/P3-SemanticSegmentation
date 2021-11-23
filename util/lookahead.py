@@ -7,7 +7,7 @@ Paper: `Lookahead Optimizer: k steps forward, 1 step back` - https://arxiv.org/a
 import torch
 from torch.optim.optimizer import Optimizer
 from collections import defaultdict
-import math
+# import math
 
 
 class Lookahead(Optimizer):
@@ -45,7 +45,7 @@ class Lookahead(Optimizer):
 
     def step(self, closure=None):
         # print(self.k)
-        #assert id(self.param_groups) == id(self.base_optimizer.param_groups)
+        # assert id(self.param_groups) == id(self.base_optimizer.param_groups)
         loss = self.base_optimizer.step(closure)
         for group in self.param_groups:
             group['lookahead_step'] += 1
@@ -92,7 +92,6 @@ class Lookahead(Optimizer):
             for name, default in self.defaults.items():
                 for group in self.param_groups:
                     group.setdefault(name, default)
-
 
 #
 #

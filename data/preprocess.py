@@ -2,18 +2,24 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+import logging
 
 import inspect
 import os
 import numpy as np
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import KFold
 from typing import Dict
 import cv2
 
 # change DATASET ROOT to your dataset path
 
 # DATASET_ROOT = os.getenv["DATASET_ROOT"]
-DATASET_ROOT = '/content/drive/MyDrive/shortcuts/CS663-MSCG-Net/input/Agriculture-Vision-2021'
+# DATASET_ROOT = '/content/drive/MyDrive/shortcuts/CS663-MSCG-Net/input/Agriculture-Vision-2021'
+# from config import CONFIG["TRACING_ENABLED"]
+# import config
+
+# CONFIG = config.configure()
+DATASET_ROOT = '/home/hanz/github/mscg-agriculture-dataset/2021/supervised/Agriculture-Vision-2021'
 if not os.path.exists(DATASET_ROOT):
     raise Exception("Dataset path not found")
 else:
@@ -23,11 +29,22 @@ TRAIN_ROOT = os.path.join(DATASET_ROOT, 'train')
 VAL_ROOT = os.path.join(DATASET_ROOT, 'val')
 TEST_ROOT = os.path.join(DATASET_ROOT, 'test/images')
 
-
+# TODO: likely needs to be updated to reflect the new labels
 """
-TODO: likely needs to be updated to reflect the new labels
-In the loaded numpy array, only 0-6 integer labels are allowed, and they represent the annotations in the following way:
+UPDATED (11/20/21):
+In the loaded numpy array, only 0-9 integer labels are allowed, and they represent the annotations in the following way:
+0 - background 
+1 - water
+2 - double_plant
+3 - planter_skip
+4 - drydown
+5 - waterway
+6 - weed_cluster
+7 - endrow
+8 - nutrient_deficiency
+9 - storm_damage
 
+OLD (pre-refactor)
 0 - background
 1 - cloud_shadow
 2 - double_plant
@@ -35,45 +52,60 @@ In the loaded numpy array, only 0-6 integer labels are allowed, and they represe
 4 - standing_water
 5 - waterway
 6 - weed_cluster
-
 """
+# new classes:  water [1], drydown [2], endrow [3], nutrient_deficiency [4], storm_damage [5]
+# missing from old:  cloud_shadow, standing_water
+
 palette_land = {
-    0 : (0, 0, 0),        # background
-    1 : (255, 255, 0),    # cloud_shadow
-    2 : (255, 0, 255),    # double_plant
-    3 : (0, 255, 0),      # planter_skip
-    4 : (0, 0, 255),      # standing_water
-    5 : (255, 255, 255),  # waterway
-    6 : (0, 255, 255),    # weed_cluster
-    # class-7
-    # class-8
-    # class-9
+    0: (0, 0, 0),  # TODO: unsure if relabel is necessary leaving as `background`
+
+    1: (255, 255, 0),  # TODO: UPDATED [1] to `water` from `cloud_shadow`
+    2: (255, 0, 255),  # double_plant
+    3: (0, 255, 0),  # planter_skip
+    4: (0, 0, 255),  # TODO: UPDATED [2] to `drydown` from `standing_water`
+    5: (255, 255, 255),  # waterway
+    6: (0, 255, 255),  # weed_cluster
+    7: (0, 128, 255),  # TODO: UPDATED [3] to `endrow` from `cloud_shadow`
+    8: (128, 0, 128),  # TODO: UPDATED [4] to `nutrient_deficiency` from `cloud_shadow`
+    9: (255, 0, 0),  # TODO: UPDATED [5] to `storm_damage` from `cloud_shadow`
 }
 
 # customised palette for visualization, easier for reading in paper
-palette_vsl = {
-    0: (0, 0, 0),     # background
-    1: (0, 255, 0),     # cloud_shadow
-    2: (255, 0, 0),     # double_plant
-    3: (0, 200, 200),   # planter_skip
-    4: (255, 255, 255), # standing_water
-    5: (128, 128, 0),   # waterway
-    6: (0, 0, 255)        # weed_cluster
+PALETTE_VSL = {
+    0: (0, 0, 0),  # TODO:  not sure whether to update or not `background`, labels reflected only 6 / 7
+    1: (0, 255, 0),  # UPDATED [1] to `water`
+    2: (255, 0, 0),  # double_plant
+    3: (0, 200, 200),  # planter_skip
+    4: (255, 255, 255),  # UPDATED [2] to `drydown`
+    5: (128, 128, 0),  # waterway
+    6: (0, 0, 255),  # weed_cluster
+    7: (0, 128, 255),  # UPDATED [3] to `endrow`
+    8: (128, 0, 128),  # UPDATED [4] to `nutrient_deficiency`
+    9: (128, 255, 128),  # UPDATED [5] to `storm_damage`
 }
 
 labels_folder = {
-    'cloud_shadow': 1,
+    'water': 1,  # TODO: UPDATED [1] to `water` from `cloud_shadow`
     'double_plant': 2,
     'planter_skip': 3,
-    'standing_water': 4,
+    'drydown': 4,  # TODO: UPDATED [2] to `drydown` from `standing_water`
     'waterway': 5,
-    'weed_cluster': 6
+    'weed_cluster': 6,
+    'endrow': 7,
+    'nutrient_deficiency': 8,
+    'storm_damage': 9
 }
 
-# TODO: likely needs to be updated to reflect the new
-land_classes = ["background", "cloud_shadow", "double_plant", "planter_skip",
-                "standing_water", "waterway", "weed_cluster"]
+# TODO: likely needs to be updated to reflect the new 9 classes -- include background...?
+# OLD
+# land_classes = ["background", "cloud_shadow", "double_plant", "planter_skip",
+#                 "standing_water", "waterway", "weed_cluster"]
 
+# UPDATED labels: only 6 classes
+LAND_CLASSES = ["background", "water", "double_plant", "planter_skip",
+                "drydown", "waterway", "weed_cluster",
+                "endrow", "nutrient_deficiency", "storm_damage"
+                ]
 
 Data_Folder = {
     'Agriculture': {
@@ -85,47 +117,50 @@ Data_Folder = {
     },
 }
 
-IMG = 'images' # RGB or IRRG, rgb/nir
+IMG = 'images'  # RGB or IRRG, rgb/nir
 GT = 'gt'
 IDS = 'IDs'
 
 
 def check_mkdir(dir_name):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Check if directory exists else create the directory"""
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
 
 
-def img_basename(filename):
-    # print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+def img_filename(filename):
+    # logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Get the only the name of the file"""
     return os.path.basename(os.path.splitext(filename)[0])
 
 
 def is_image(filename):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Validate if filepath is an image file"""
-    return any(filename.endswith(ext) for ext in ['.png','.jpg'])
+    return any(filename.endswith(ext) for ext in ['.png', '.jpg'])
 
 
-def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+def prepare_ground_truths(root_folder=TRAIN_ROOT, out_path='gt'):
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Function for creating the set of ground-truth dataset for the training and validation set"""
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating ground-truth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
-        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder,'images/rgb'))] # breaks here on cloud, likely because there are a whole bunch of images
-        gt = basname[0]+'.png'
-        for fname in basname:
+        img_paths = [img_filename(f) for f in os.listdir(os.path.join(root_folder,
+                                                                      'images/rgb'))]  # breaks here on cloud, likely because there are a whole bunch of images
+        gt = img_paths[0] + '.png'
+        for img_path in img_paths:
             gtz = np.zeros((512, 512), dtype=int)
             for key in labels_folder.keys():
-                gt = fname + '.png'
-                mask = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, gt), -1)/255, dtype=int) * labels_folder[key]
+                gt = img_path + '.png'
+                filepath = os.path.join(root_folder, 'labels', key, gt)
+                print("DEBUG:", filepath)
+                mask = np.array(cv2.imread(filepath, -1) / 255, dtype=int) * labels_folder[key]
                 gtz[gtz < 1] = mask[gtz < 1]
 
             for key in ['boundaries', 'masks']:
@@ -135,28 +170,29 @@ def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
             cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+def get_training_list(root_folder=TRAIN_ROOT, count_label=True):
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     dict_list = {}
-    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir'))]
+    img_paths = [img_filename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir'))]
     if count_label:
         for key in labels_folder.keys():
-            no_zero_files=[]
-            for fname in basname:
-                gt = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, fname+'.png'), -1))
+            no_zero_files = []
+            for img_path in img_paths:
+                gt = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, img_path + '.png'), -1))
                 if np.count_nonzero(gt):
-                    no_zero_files.append(fname)
+                    no_zero_files.append(img_path)
                 else:
                     continue
             dict_list[key] = no_zero_files
-    return dict_list, basname
-        # print(len(list[key]), list[key][0:5])
+    return dict_list, img_paths
+    # print(len(list[key]), list[key][0:5])
 
 
-def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR','RGB'], KF=3, k=1, seeds=69278):
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR', 'RGB'], KF=3, k=1,
+                              seeds=69278):
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Method for creating the training, validation and test set
     
     Creates 3 dictionaries:
@@ -178,7 +214,7 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
     train_id, t_list = get_training_list(root_folder=TRAIN_ROOT, count_label=False)
     val_id, v_list = get_training_list(root_folder=VAL_ROOT, count_label=False)
 
-    if KF >=2:
+    if KF >= 2:
         kf = KFold(n_splits=KF, shuffle=True, random_state=seeds)
         val_ids = np.array(v_list)
         idx = list(kf.split(np.array(val_ids)))
@@ -186,14 +222,14 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
             k = 0
         t2_list, v_list = list(val_ids[idx[k][0]]), list(val_ids[idx[k][1]])
     else:
-        t2_list=[]
+        t2_list = []
 
     img_folders = [os.path.join(data_folder[name]['ROOT'], 'train', data_folder[name][band]) for band in bands]
     gt_folder = os.path.join(data_folder[name]['ROOT'], 'train', data_folder[name]['GT'])
 
     val_folders = [os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name][band]) for band in bands]
     val_gt_folder = os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name]['GT'])
-    
+
     train_dict = {
         IDS: train_id,
         IMG: [[img_folder.format(id) for img_folder in img_folders] for id in t_list] +
@@ -220,9 +256,9 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
     return train_dict, val_dict, test_dict
 
 
-def get_real_test_list(root_folder = TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']) -> Dict:
-    print(inspect.currentframe().f_code.co_name)  # DEBUG
-    
+def get_real_test_list(root_folder=TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']) -> Dict:
+    logging.debug(inspect.currentframe().f_code.co_name) # DEBUG # if CONFIG["TRACING_ENABLED"]: logging.debug(inspect.currentframe().f_code.co_name) # DEBUG
+
     """Function probably for handling for the competition test set
     TODO: confirm if true or false
 
@@ -236,7 +272,7 @@ def get_real_test_list(root_folder = TEST_ROOT, data_folder=Data_Folder, name='A
         Dict -- [description]
     """
     dict_list = {}
-    basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'nir'))]
+    basname = [img_filename(f) for f in os.listdir(os.path.join(root_folder, 'nir'))]
     dict_list['all'] = basname
 
     test_dict = {

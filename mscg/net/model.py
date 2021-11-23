@@ -2,14 +2,14 @@ import os
 import torch.nn.functional as F
 from collections import OrderedDict
 from pretrainedmodels import se_resnext50_32x4d, se_resnext101_32x4d
-from lib.net.scg_gcn import *
+from mscg.net.scg_gcn import *
 
 
 def load_model(name='MSCG-Rx50', classes=7, node_size=(32,32)):
     if name == 'MSCG-Rx50':
-        net = rx50_gcn_3head_4channel(out_channels=classes)
+        net = RX50GCN3Head4Channel(out_channels=classes)
     elif name == 'MSCG-Rx101':
-        net = rx101_gcn_3head_4channel(out_channels=classes)
+        net = RX101GCN3Head4Channel(out_channels=classes)
     else:
         print('not found the net')
         return -1
@@ -17,11 +17,11 @@ def load_model(name='MSCG-Rx50', classes=7, node_size=(32,32)):
     return net
 
 
-class rx50_gcn_3head_4channel(nn.Module):
+class RX50GCN3Head4Channel(nn.Module):
     def __init__(self, out_channels=7, pretrained=True,
                  nodes=(32, 32), dropout=0,
                  enhance_diag=True, aux_pred=True):
-        super(rx50_gcn_3head_4channel, self).__init__()  # same with  res_fdcs_v5
+        super(RX50GCN3Head4Channel, self).__init__()  # same with  res_fdcs_v5
 
         self.aux_pred = aux_pred
         self.node_size = nodes
@@ -42,15 +42,15 @@ class rx50_gcn_3head_4channel(nn.Module):
         self.conv0.parameters = torch.cat([par[:, 0, :, :].unsqueeze(1), par], 1)
         self.layer0 = torch.nn.Sequential(self.conv0, *list(self.layer0)[1:4])
 
-        self.graph_layers1 = GCN_Layer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
+        self.graph_layers1 = GCNLayer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
 
-        self.graph_layers2 = GCN_Layer(128, out_channels, bnorm=False, activation=None)
+        self.graph_layers2 = GCNLayer(128, out_channels, bnorm=False, activation=None)
 
-        self.scg = SCG_block(in_ch=1024,
-                             hidden_ch=out_channels,
-                             node_size=nodes,
-                             add_diag=enhance_diag,
-                             dropout=dropout)
+        self.scg = SCGBlock(in_ch=1024,
+                            hidden_ch=out_channels,
+                            node_size=nodes,
+                            add_diag=enhance_diag,
+                            dropout=dropout)
 
         weight_xavier_init(self.graph_layers1, self.graph_layers2, self.scg)
 
@@ -95,11 +95,11 @@ class rx50_gcn_3head_4channel(nn.Module):
             return F.interpolate(gx, x_size[2:], mode='bilinear', align_corners=False)
 
 
-class rx101_gcn_3head_4channel(nn.Module):
+class RX101GCN3Head4Channel(nn.Module):
     def __init__(self, out_channels=7, pretrained=True,
                  nodes=(32, 32), dropout=0,
                  enhance_diag=True, aux_pred=True):
-        super(rx101_gcn_3head_4channel, self).__init__()  # same with  res_fdcs_v5
+        super(RX101GCN3Head4Channel, self).__init__()  # same with  res_fdcs_v5
 
         self.aux_pred = aux_pred
         self.node_size = nodes
@@ -120,15 +120,15 @@ class rx101_gcn_3head_4channel(nn.Module):
         self.conv0.parameters = torch.cat([par[:, 0, :, :].unsqueeze(1), par], 1)
         self.layer0 = torch.nn.Sequential(self.conv0, *list(self.layer0)[1:4])
 
-        self.graph_layers1 = GCN_Layer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
+        self.graph_layers1 = GCNLayer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
 
-        self.graph_layers2 = GCN_Layer(128, out_channels, bnorm=False, activation=None)
+        self.graph_layers2 = GCNLayer(128, out_channels, bnorm=False, activation=None)
 
-        self.scg = SCG_block(in_ch=1024,
-                             hidden_ch=out_channels,
-                             node_size=nodes,
-                             add_diag=enhance_diag,
-                             dropout=dropout)
+        self.scg = SCGBlock(in_ch=1024,
+                            hidden_ch=out_channels,
+                            node_size=nodes,
+                            add_diag=enhance_diag,
+                            dropout=dropout)
 
         weight_xavier_init(self.graph_layers1, self.graph_layers2, self.scg)
 

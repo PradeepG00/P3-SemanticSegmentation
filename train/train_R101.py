@@ -3,35 +3,44 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
+
 import sys
 import time
+import random
 
 import torchvision.utils as vutils
-from lib.loss.acwloss import *
+import os
+
+# import config
+from config import MSCGTrainingConfiguration
+from data.preprocess import prepare_ground_truths, VAL_ROOT, TRAIN_ROOT
+from mscg.loss.acwloss import *
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
-from config.configs_kf import *
-from lib.utils.lookahead import *
-from lib.utils.lr import init_params_lr
-from lib.utils.measure import *
-from lib.utils.visual import *
+# from config import *
+from util.lookahead import *
+from util.lr import init_params_lr
+from util.benchmark import *
+from util.visualize import *
 
-from tools.model import load_model
+from mscg.net.model import load_model
 
 cudnn.benchmark = True
+# CONFIG = config.configure()
+prepare_ground_truths(VAL_ROOT)
+prepare_ground_truths(TRAIN_ROOT)
 
-prepare_gt(VAL_ROOT)
-prepare_gt(TRAIN_ROOT)
-
-train_args = agriculture_configs(net_name='MSCG-Rx101',
-                                 data='Agriculture',
-                                 bands_list=['NIR', 'RGB'],
-                                 kf=0, k_folder=0,
-                                 note='reproduce'
-                                 )
+# train_args = config.MSCGTrainingConfiguration(net_name='MSCG-Rx101',
+train_args = MSCGTrainingConfiguration(net_name='MSCG-Rx101',
+                                              data='Agriculture',
+                                              bands_list=['NIR', 'RGB'],
+                                              kf=0, k_folder=0,
+                                              note='reproduce'
+                                              )
 
 train_args.input_size = [512, 512]
 train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
@@ -68,7 +77,7 @@ def random_seed(seed_value, use_cuda=True):
         torch.backends.cudnn.benchmark = False
 
 
-def main():
+def train_rx101(device: str = "gpu"):
     random_seed(train_args.seeds)
 
     train_args.write2txt()
@@ -76,14 +85,19 @@ def main():
                      node_size=train_args.node_size)
 
     net, start_epoch = train_args.resume_train(net)
-    net.cuda()
+    # DEBUG using CPU
+    if device.lower() == "gpu": net.cuda()
     net.train()
 
     train_set, val_set = train_args.get_dataset()
     train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
     val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
 
-    criterion = ACWLoss().cuda()
+    # DEBUG using CPU
+    if device.lower() == "gpu":
+        criterion = ACWLoss().cuda()
+    else:
+        criterion = ACWLoss()
 
     params = init_params_lr(net, train_args)
 
@@ -97,10 +111,10 @@ def main():
     new_ep = 0
 
     while True:
-        starttime = time.time()
+        start_time = time.time()
         train_main_loss = AverageMeter()
         aux_train_loss = AverageMeter()
-        cls_trian_loss = AverageMeter()
+        cls_train_loss = AverageMeter()
 
         start_lr = train_args.lr
         train_args.lr = optimizer.param_groups[0]['lr']
@@ -111,7 +125,8 @@ def main():
         for i, (inputs, labels) in enumerate(train_loader):
             sys.stdout.flush()
 
-            inputs, labels = inputs.cuda(), labels.cuda(),
+            # DEBUG using CPU
+            if device.lower() == "gpu": inputs, labels = inputs.cuda(), labels.cuda()
             N = inputs.size(0) * inputs.size(2) * inputs.size(3)
             optimizer.zero_grad()
             outputs, cost = net(inputs)
@@ -121,7 +136,7 @@ def main():
             loss = main_loss + cost
 
             loss.backward()
-            optimizer.step()
+            # optimizer.step()
             lr_scheduler.step(epoch=(start_epoch + new_ep))
 
             train_main_loss.update(main_loss.item(), N)
@@ -134,28 +149,29 @@ def main():
             writer.add_scalar('lr', optimizer.param_groups[0]['lr'], curr_iter)
 
             if (i + 1) % train_args.print_freq == 0:
-                newtime = time.time()
+                new_time = time.time()
 
                 print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
                       (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
-                       cls_trian_loss.avg,
-                       optimizer.param_groups[0]['lr'], newtime - starttime))
+                       cls_train_loss.avg,
+                       optimizer.param_groups[0]['lr'], new_time - start_time))
 
-                starttime = newtime
+                start_time = new_time
 
         validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep, new_ep)
 
         new_ep += 1
 
 
-def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
+def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep, device: str = "gpu"):
     net.eval()
     val_loss = AverageMeter()
     inputs_all, gts_all, predictions_all = [], [], []
 
     with torch.no_grad():
         for vi, (inputs, gts) in enumerate(val_loader):
-            inputs, gts = inputs.cuda(), gts.cuda()
+            # DEBUG using CPU
+            if device.lower() == "gpu": inputs, gts = inputs.cuda(), gts.cuda()
             N = inputs.size(0) * inputs.size(2) * inputs.size(3)
             outputs = net(inputs)
 
@@ -170,15 +186,15 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             predictions = outputs.data.max(1)[1].squeeze(1).squeeze(0).cpu().numpy()
             predictions_all.append(predictions)
 
-    update_ckpt(net, optimizer, epoch, new_ep, val_loss,
-                inputs_all, gts_all, predictions_all)
+    update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
+                      inputs_all, gts_all, predictions_all)
 
     net.train()
     return val_loss, inputs_all, gts_all, predictions_all
 
 
-def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
-                inputs_all, gts_all, predictions_all):
+def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
+                      inputs_all, gts_all, predictions_all):
     avg_loss = val_loss.avg
 
     acc, acc_cls, mean_iu, fwavacc, f1 = evaluate(predictions_all, gts_all, train_args.nb_classes)
@@ -195,7 +211,7 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
     # save best record and snapshot prameters
     val_visual = []
 
-    snapshot_name = 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
+    snapshot_name = 'rx101-epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
         epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
     )
 
@@ -204,7 +220,7 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
     if train_args.save_pred:
         if updated or (new_ep % 5 == 0):
-            val_visual = visual_ckpt(epoch, new_ep, inputs_all, gts_all, predictions_all)
+            val_visual = visualize_checkpoints(epoch, new_ep, inputs_all, gts_all, predictions_all)
 
     if len(val_visual) > 0:
         val_visual = torch.stack(val_visual, 0)
@@ -212,13 +228,13 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
         writer.add_image(snapshot_name, val_visual)
 
 
-def visual_ckpt(epoch, new_ep, inputs_all, gts_all, predictions_all):
+def visualize_checkpoints(epoch, new_ep, inputs_all, ground_truth_all, predictions_all):
     val_visual = []
     if train_args.save_pred:
         to_save_dir = os.path.join(train_args.save_path, str(epoch) + '_' + str(new_ep))
         check_mkdir(to_save_dir)
 
-    for idx, data in enumerate(zip(inputs_all, gts_all, predictions_all)):
+    for idx, data in enumerate(zip(inputs_all, ground_truth_all, predictions_all)):
         if data[0] is None:
             continue
 
@@ -249,4 +265,4 @@ def check_mkdir(dir_name):
 
 
 if __name__ == '__main__':
-    main()
+    train_rx101()

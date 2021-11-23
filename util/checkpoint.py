@@ -1,12 +1,15 @@
-from tools.model import *
-from config.configs_kf import *
+from PIL.Image import Image
+
+from data.augment import imload
+from mscg.net.model import *
+from config import *
 
 # score 0.547, no TTA
 ckpt1 = {
     'net': 'MSCG-Rx50',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../ckpt/epoch_8_loss_0.99527_acc_0.82278_acc-cls_0.60967_'
                 'mean-iu_0.48098_fwavacc_0.70248_f1_0.62839_lr_0.0000829109.pth'
 }
@@ -15,40 +18,40 @@ ckpt1 = {
 ckpt2 = {
     'net': 'MSCG-Rx101',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../ckpt/epoch_15_loss_1.03019_acc_0.83952_acc-cls_0.70245_'
                 'mean-iu_0.54833_fwavacc_0.73482_f1_0.69034_lr_0.0001076031.pth'
 
 }
 
-
 ckpt3 = {
     'net': 'MSCG-Rx101',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../ckpt/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_'
                 'mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth'
 }
+
 
 # ckpt1 + ckpt2, test score 0.599,
 # ckpt1 + ckpt2 + ckpt3, test score 0.608
 
 
-def get_net(ckpt=ckpt1):
-    net = load_model(name=ckpt['net'],
+def get_net(checkpoint=ckpt1, device: str = "gpu"):
+    net = load_model(name=checkpoint['net'],
                      classes=7,
-                     node_size=ckpt['nodes'])
+                     node_size=checkpoint['nodes'])
 
-    net.load_state_dict(torch.load(ckpt['snapshot']))
-    net.cuda()
+    net.load_state_dict(torch.load(checkpoint['snapshot']))
+    # DEBUG using CPU
+    if device.lower() == "gpu": net.cuda()
     net.eval()
     return net
 
 
-def loadtestimg(test_files):
-
+def load_test_img(test_files):
     id_dict = test_files[IDS]
     image_files = test_files[IMG]
     # mask_files = test_files[GT]

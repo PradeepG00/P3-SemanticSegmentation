@@ -1,22 +1,18 @@
 from __future__ import division
 
-from tools.model import load_model
-
-from config.configs_kf import *
-from lib.utils.visual import *
+from data.augment import scale
+from util.visualize import *
 
 import torchvision.transforms as st
 from sklearn.metrics import confusion_matrix
-import numpy as np
 from tqdm import tqdm_notebook as tqdm
 
-from tools.ckpt import *
+from util.checkpoint import *
 import time
 import itertools
 
-
-
 output_path = os.path.join('../submission', 'results_ckpt1_ckpt2_tta')
+
 
 def main():
     check_mkdir(output_path)
@@ -33,13 +29,13 @@ def main():
     # ckpt1 + ckpt2, test score 0.599,
     # ckpt1 + ckpt2 + ckpt3, test score 0.608
 
-    test_files = get_real_test_list(bands=['NIR','RGB'])
+    test_files = get_real_test_list(bands=['NIR', 'RGB'])
     tta_real_test(nets, stride=600, batch_size=1,
-                  norm=False, window_size=(512, 512), labels=land_classes,
+                  norm=False, window_size=(512, 512), labels=LAND_CLASSES,
                   test_set=test_files, all=True)
 
 
-def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize = (512, 512)):
+def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512, 512), device: str = "gpu"):
     pred_all = np.zeros(image.shape[:2] + (num_class,))
     for scale_rate in scales:
         # print('scale rate: ', scale_rate)
@@ -54,15 +50,18 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize = (5
                      leave=False)):
 
             image_patches = [np.copy(img[x:x + w, y:y + h]).transpose((2, 0, 1)) for x, y, w, h in coords]
-            imgs_flip = [patch[:, ::-1, :] for patch in image_patches]
-            imgs_mirror = [patch[:, :, ::-1] for patch in image_patches]
+            im_flip = [patch[:, ::-1, :] for patch in image_patches]
+            im_mirror = [patch[:, :, ::-1] for patch in image_patches]
 
-            image_patches = np.concatenate((image_patches, imgs_flip, imgs_mirror), axis=0)
+            image_patches = np.concatenate((image_patches, im_flip, im_mirror), axis=0)
             image_patches = np.asarray(image_patches)
-            image_patches = torch.from_numpy(image_patches).cuda()
+            if device.lower() == "gpu":
+                image_patches = torch.from_numpy(image_patches).cuda()
+            else:
+                image_patches = torch.from_numpy(image_patches)  # CPU
 
             for net in nets:
-                outs = net(image_patches) #+ Fn.torch_rot270(net(Fn.torch_rot90(image_patches)))
+                outs = net(image_patches)  # + Fn.torch_rot270(net(Fn.torch_rot90(image_patches)))
                 # outs = net(image_patches)
                 outs = outs.data.cpu().numpy()
 
@@ -90,13 +89,12 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize = (5
     return pred_all
 
 
-
-def tta_real_test(nets, all=False, labels=land_classes, norm=False,
-             test_set=None, stride=600, batch_size=5, window_size=(512, 512)):
+def tta_real_test(nets, all=False, labels=LAND_CLASSES, norm=False,
+                  test_set=None, stride=600, batch_size=5, window_size=(512, 512)):
     # test_images, test_labels = (loadtestimg(test_set))
-    test_files = (loadtestimg(test_set))
+    test_files = (load_test_img(test_set))
     # gts = (loadgt(test_set))
-    idlist=(loadids(test_set))
+    idlist = (loadids(test_set))
 
     all_preds = []
     # all_gts = []
@@ -117,9 +115,7 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
             img = st.Normalize(*mean_std)(img)
         img = img.cpu().numpy().transpose((1, 2, 0))
 
-
         stime = time.time()
-
 
         with torch.no_grad():
             pred = fusion_prediction(nets, image=img, scales=[1.0],
@@ -130,7 +126,9 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
         pred = np.argmax(pred, axis=-1)
 
         for key in ['boundaries', 'masks']:
-            pred = pred * np.array(cv2.imread(os.path.join('/media/liu/diskb/data/Agriculture-Vision/test', key, id+'.png'), -1) / 255, dtype=int)
+            pred = pred * np.array(
+                cv2.imread(os.path.join('/media/liu/diskb/data/Agriculture-Vision/test', key, id + '.png'), -1) / 255,
+                dtype=int)
         filename = './{}.png'.format(id)
         cv2.imwrite(os.path.join(output_path, filename), pred)
 
@@ -148,9 +146,7 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
         return all_preds
 
 
-
-
-def metrics(predictions, gts, label_values=land_classes):
+def metrics(predictions, gts, label_values=LAND_CLASSES):
     cm = confusion_matrix(
         gts,
         predictions,

@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-class SCG_block(nn.Module):
+class SCGBlock(nn.Module):
     def __init__(self, in_ch, hidden_ch=6, node_size=(32,32), add_diag=True, dropout=0.2):
-        super(SCG_block, self).__init__()
+        super(SCGBlock, self).__init__()
         self.node_size = node_size
         self.hidden = hidden_ch
         self.nodes = node_size[0]*node_size[1]
@@ -82,14 +82,14 @@ class SCG_block(nn.Module):
         return LA
 
 
-class GCN_Layer(nn.Module):
+class GCNLayer(nn.Module):
     def __init__(self, in_features, out_features, bnorm=True,
                  activation=nn.ReLU(), dropout=None):
-        super(GCN_Layer, self).__init__()
+        super(GCNLayer, self).__init__()
         self.bnorm = bnorm
         fc = [nn.Linear(in_features, out_features)]
         if bnorm:
-            fc.append(BatchNorm_GCN(out_features))
+            fc.append(BatchNormGCN(out_features))
         if activation is not None:
             fc.append(activation)
         if dropout is not None:
@@ -117,13 +117,13 @@ def weight_xavier_init(*models):
                 module.bias.data.zero_()
 
 
-class BatchNorm_GCN(nn.BatchNorm1d):
+class BatchNormGCN(nn.BatchNorm1d):
     '''Batch normalization over GCN features'''
 
     def __init__(self, num_features):
-        super(BatchNorm_GCN, self).__init__(num_features)
+        super(BatchNormGCN, self).__init__(num_features)
 
     def forward(self, x):
-        return super(BatchNorm_GCN, self).forward(x.permute(0, 2, 1)).permute(0, 2, 1)
+        return super(BatchNormGCN, self).forward(x.permute(0, 2, 1)).permute(0, 2, 1)
 
 

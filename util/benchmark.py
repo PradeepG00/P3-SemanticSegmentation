@@ -38,7 +38,6 @@ def evaluate(predictions, gts, num_classes):
     return acc, acc_cls, mean_iu, fwavacc, np.nanmean(f1_score)
 
 
-
 class AverageMeter(object):
     def __init__(self):
         self.reset()
