@@ -6,7 +6,7 @@ from data.AgricultureVision.loader import *
 
 
 class agriculture_configs(object):
-    model = 'none'
+    model_name = 'none'
     # data set parameters
     dataset = 'Agriculture'
     bands = ['NIR', 'RGB']
@@ -23,8 +23,10 @@ class agriculture_configs(object):
     val_size = [512, 512] #[1224, 1224]#[2248, 2248]
     train_samples = 12901
     val_samples = 1200
-    train_batch = 7
-    val_batch = 7
+    # train_batch = 7
+    # val_batch = 7
+    train_batch = 1
+    val_batch = 1
 
     # flag of mean_std normalization to [-1, 1]
     pre_norm = False
@@ -42,13 +44,14 @@ class agriculture_configs(object):
     # check point parameters
     ckpt_path = '../ckpt'
     snapshot = ''
-    print_freq = 100
+    # print_freq = 100
+    print_freq = 5
     save_pred = False
     save_rate = 0.1
     best_record = {}
 
-    def __init__(self, net_name=model, data=dataset, bands_list=bands, kf=1, k_folder=5, note=''):
-        self.model = net_name
+    def __init__(self, net_name=model_name, data=dataset, bands_list=bands, kf=1, k_folder=5, note=''):
+        self.model_name = net_name
         self.dataset = data
         self.bands = bands_list
         self.k = kf
@@ -56,7 +59,7 @@ class agriculture_configs(object):
         self.suffix_note = note
 
         check_mkdir(self.ckpt_path)
-        check_mkdir(os.path.join(self.ckpt_path, self.model))
+        check_mkdir(os.path.join(self.ckpt_path, self.model_name))
 
         bandstr = '-'.join(self.bands)
         if self.k_folder is not None:
@@ -67,8 +70,8 @@ class agriculture_configs(object):
             subfolder += '-'
             subfolder += note
 
-        check_mkdir(os.path.join(self.ckpt_path, self.model, subfolder))
-        self.save_path = os.path.join(self.ckpt_path, self.model, subfolder)
+        check_mkdir(os.path.join(self.ckpt_path, self.model_name, subfolder))
+        self.save_path = os.path.join(self.ckpt_path, self.model_name, subfolder)
 
     def get_file_list(self):
         return split_train_val_test_sets(name=self.dataset, bands=self.bands, KF=self.k_folder, k=self.k, seeds=self.seeds)

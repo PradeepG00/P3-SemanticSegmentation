@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import random
 
-from lib.utils.funtions import image_enhance
+from lib.utils.functions import image_enhance
 from PIL import Image, ImageEnhance
 
 from albumentations import (

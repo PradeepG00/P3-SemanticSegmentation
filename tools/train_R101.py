@@ -23,16 +23,12 @@ from tools.model import load_model
 
 cudnn.benchmark = True
 
-prepare_gt(VAL_ROOT)
-prepare_gt(TRAIN_ROOT)
-
 train_args = agriculture_configs(net_name='MSCG-Rx101',
                                  data='Agriculture',
                                  bands_list=['NIR', 'RGB'],
                                  kf=0, k_folder=0,
                                  note='reproduce'
                                  )
-
 train_args.input_size = [512, 512]
 train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
 train_args.val_size = [512, 512]
@@ -40,7 +36,7 @@ train_args.node_size = (32, 32)
 train_args.train_batch = 7
 train_args.val_batch = 7
 
-train_args.lr = 2.18e-4/np.sqrt(3)
+train_args.lr = 2.18e-4 / np.sqrt(3)
 train_args.weight_decay = 2e-5
 
 train_args.lr_decay = 0.9
@@ -69,10 +65,12 @@ def random_seed(seed_value, use_cuda=True):
 
 
 def main():
+    prepare_gt(VAL_ROOT)
+    prepare_gt(TRAIN_ROOT)
     random_seed(train_args.seeds)
 
     train_args.write2txt()
-    net = load_model(name=train_args.model, classes=train_args.nb_classes,
+    net = load_model(name=train_args.model_name, classes=train_args.nb_classes,
                      node_size=train_args.node_size)
 
     net, start_epoch = train_args.resume_train(net)
@@ -195,12 +193,13 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
     # save best record and snapshot prameters
     val_visual = []
 
-    snapshot_name = 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
+    snapshot_name = train_args.model_name + "-" + 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
         epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
     )
 
     if updated or (train_args.best_record['val_loss'] > avg_loss):
-        torch.save(net.state_dict(), os.path.join(train_args.save_path, snapshot_name + '.pth'))
+        torch.save(net.state_dict(),
+                   os.path.join(train_args.save_path,  snapshot_name + '.pth'))
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
     if train_args.save_pred:
         if updated or (new_ep % 5 == 0):

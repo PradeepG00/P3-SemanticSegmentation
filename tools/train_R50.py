@@ -3,9 +3,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import sys
 import time
-
+import inspect
 import torchvision.utils as vutils
 from lib.loss.acw_loss import *
 from tensorboardX import SummaryWriter
@@ -19,11 +20,25 @@ from lib.utils.lr import init_params_lr
 from lib.utils.measure import *
 from lib.utils.visual import *
 from tools.model import load_model
+#####################################
+# Setup Logging
+#####################################
+logging.basicConfig(level=logging.DEBUG)
+logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+rootLogger = logging.getLogger()
 
+fileHandler = logging.FileHandler("{0}/{1}.log".format("./", f"rx50-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"))
+fileHandler.setFormatter(logFormatter)
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
+
+#####################################
+# Training Configuration
+#####################################
 cudnn.benchmark = True
-
-prepare_gt(VAL_ROOT)
-prepare_gt(TRAIN_ROOT)
 
 train_args = agriculture_configs(net_name='MSCG-Rx50',
                                  data='Agriculture',
@@ -36,8 +51,8 @@ train_args.input_size = [512, 512]
 train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
 train_args.val_size = [512, 512]
 train_args.node_size = (32, 32)
-train_args.train_batch = 10
-train_args.val_batch = 10
+train_args.train_batch = 1 #TODO: updated from 10 to 1 to assess mem leak issue
+train_args.val_batch = 1 #TODO: updated from 10 to 1 to assess mem leak issue
 
 train_args.lr = 1.5e-4 / np.sqrt(3)
 train_args.weight_decay = 2e-5
@@ -47,10 +62,10 @@ train_args.max_iter = 1e8
 
 train_args.snapshot = ''
 
-train_args.print_freq = 100
+train_args.print_freq = 5  # TODO: updated from 100 to 5 to observe mem leak issue
 train_args.save_pred = False
 # output training configuration to a text file
-train_args.ckpt_path=os.path.abspath(os.curdir)
+train_args.ckpt_path = os.path.abspath(os.curdir)
 
 writer = SummaryWriter(os.path.join(train_args.save_path, 'tblog'))
 visualize, restore = get_visualize(train_args)
@@ -69,93 +84,102 @@ def random_seed(seed_value, use_cuda=True):
 
 
 def main():
-    random_seed(train_args.seeds)
-    train_args.write2txt()
-    net = load_model(name=train_args.model, classes=train_args.nb_classes,
-                     node_size=train_args.node_size)
+    try:
+        prepare_gt(VAL_ROOT)
+        prepare_gt(TRAIN_ROOT)
+        random_seed(train_args.seeds)
+        train_args.write2txt()
+        net = load_model(name=train_args.model_name, classes=train_args.nb_classes,
+                         node_size=train_args.node_size)
 
-    net, start_epoch = train_args.resume_train(net)
-    net.cuda()
-    net.train()
+        net, start_epoch = train_args.resume_train(net)
+        net.cuda()
+        net.train()
 
-    # prepare dataset for training and validation
-    train_set, val_set = train_args.get_dataset()
-    train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
-    val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
+        # prepare dataset for training and validation
+        train_set, val_set = train_args.get_dataset()
+        train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
+        val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
 
+        criterion = ACW_loss().cuda()
 
-    criterion = ACW_loss().cuda()
+        params = init_params_lr(net, train_args)
+        # first train with Adam for around 10 epoch, then manually change to SGD
+        # to continue the rest train, Note: need resume train from the saved snapshot
+        base_optimizer = optim.Adam(params, amsgrad=True)
+        # base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
+        optimizer = Lookahead(base_optimizer, k=6)
+        # optimizer = AdaX(params)
 
-    params = init_params_lr(net, train_args)
-    # first train with Adam for around 10 epoch, then manually change to SGD
-    # to continue the rest train, Note: need resume train from the saved snapshot
-    base_optimizer = optim.Adam(params, amsgrad=True)
-    # base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
-    optimizer = Lookahead(base_optimizer, k=6)
-    # optimizer = AdaX(params)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
 
+        new_ep = 0
+        while True:
+            starttime = time.time()
+            train_main_loss = AverageMeter()
+            aux_train_loss = AverageMeter()
+            cls_trian_loss = AverageMeter()
 
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
+            start_lr = train_args.lr
+            train_args.lr = optimizer.param_groups[0]['lr']
+            num_iter = len(train_loader)
+            curr_iter = ((start_epoch + new_ep) - 1) * num_iter
+            print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
 
-    new_ep = 0
-    while True:
-        starttime = time.time()
-        train_main_loss = AverageMeter()
-        aux_train_loss = AverageMeter()
-        cls_trian_loss = AverageMeter()
+            for i, (inputs, labels) in enumerate(train_loader):
+                sys.stdout.flush()
 
-        start_lr = train_args.lr
-        train_args.lr = optimizer.param_groups[0]['lr']
-        num_iter = len(train_loader)
-        curr_iter = ((start_epoch + new_ep) - 1) * num_iter
-        print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
+                inputs, labels = inputs.cuda(), labels.cuda(),
+                N = inputs.size(0) * inputs.size(2) * inputs.size(3)
+                optimizer.zero_grad()
+                outputs, cost = net(inputs)
 
-        for i, (inputs, labels) in enumerate(train_loader):
-            sys.stdout.flush()
+                main_loss = criterion(outputs, labels)
+                loss = main_loss + cost
 
-            inputs, labels = inputs.cuda(), labels.cuda(),
-            N = inputs.size(0) * inputs.size(2) * inputs.size(3)
-            optimizer.zero_grad()
-            outputs, cost = net(inputs)
+                loss.backward()
+                optimizer.step()
+                lr_scheduler.step(epoch=(start_epoch + new_ep))
 
-            main_loss = criterion(outputs, labels)
-            loss = main_loss + cost
+                train_main_loss.update(main_loss.item(), N)
+                aux_train_loss.update(cost.item(), inputs.size(0))
 
-            loss.backward()
-            optimizer.step()
-            lr_scheduler.step(epoch=(start_epoch + new_ep))
+                curr_iter += 1
+                writer.add_scalar('main_loss', train_main_loss.avg, curr_iter)
+                writer.add_scalar('aux_loss', aux_train_loss.avg, curr_iter)
+                # writer.add_scalar('cls_loss', cls_trian_loss.avg, curr_iter)
+                writer.add_scalar('lr', optimizer.param_groups[0]['lr'], curr_iter)
 
-            train_main_loss.update(main_loss.item(), N)
-            aux_train_loss.update(cost.item(), inputs.size(0))
+                if (i + 1) % train_args.print_freq == 0:
+                    newtime = time.time()
 
-            curr_iter += 1
-            writer.add_scalar('main_loss', train_main_loss.avg, curr_iter)
-            writer.add_scalar('aux_loss', aux_train_loss.avg, curr_iter)
-            # writer.add_scalar('cls_loss', cls_trian_loss.avg, curr_iter)
-            writer.add_scalar('lr', optimizer.param_groups[0]['lr'], curr_iter)
+                    print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
+                          (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
+                           cls_trian_loss.avg,
+                           optimizer.param_groups[0]['lr'], newtime - starttime))
 
-            if (i + 1) % train_args.print_freq == 0:
-                newtime = time.time()
+                    starttime = newtime
 
-                print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
-                      (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
-                       cls_trian_loss.avg,
-                       optimizer.param_groups[0]['lr'], newtime - starttime))
+                validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep, new_ep) # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
 
-                starttime = newtime
-
-        validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep, new_ep)
-
-        new_ep += 1
+            new_ep += 1
+    except Exception as e:
+        logging.debug(e)
 
 
 def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
+    # TODO: there appears to be a memory leak here or a loading of ALL data issue
+    #   causing CPU RAM consumption to be extremely large
+    logging.debug("validating and update model checkpoint")
     net.eval()
     val_loss = AverageMeter()
     inputs_all, gts_all, predictions_all = [], [], []
 
     with torch.no_grad():
+        logging.debug("aggregating input, predictions, and ground truths using CPU")
+        i = 0
         for vi, (inputs, gts) in enumerate(val_loader):
+            logging.debug(f"aggregate input, prediction, ground-truth -- iteration {i}")
             # newsize = random.uniform(0.87, 1.78)
             # val_set.winsize = np.array([train_args.input_size[0] * newsize,
             #                             train_args.input_size[1] * newsize],
@@ -176,6 +200,8 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             gts_all.append(gts.data.squeeze(0).cpu().numpy())
             predictions = outputs.data.max(1)[1].squeeze(1).squeeze(0).cpu().numpy()
             predictions_all.append(predictions)
+
+            i += 1
 
     update_ckpt(net, optimizer, epoch, new_ep, val_loss,
                 inputs_all, gts_all, predictions_all)
@@ -202,12 +228,13 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
     # save best record and snapshot prameters
     val_visual = []
 
-    snapshot_name = 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
+    snapshot_name = train_args.model_name + "-" + 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
         epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
     )
 
     if updated or (train_args.best_record['val_loss'] > avg_loss):
-        torch.save(net.state_dict(), os.path.join(train_args.save_path, snapshot_name + '.pth'))
+        torch.save(net.state_dict(),
+                   os.path.join(train_args.save_path, snapshot_name + '.pth'))
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
     if train_args.save_pred:
         if updated or (new_ep % 5 == 0):
