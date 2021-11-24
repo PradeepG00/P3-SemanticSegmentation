@@ -23,10 +23,10 @@ class agriculture_configs(object):
     val_size = [512, 512] #[1224, 1224]#[2248, 2248]
     train_samples = 12901
     val_samples = 1200
-    # train_batch = 7
-    # val_batch = 7
-    train_batch = 1
-    val_batch = 1
+    train_batch = 7
+    val_batch = 7
+    # train_batch = 1
+    # val_batch = 1
 
     # flag of mean_std normalization to [-1, 1]
     pre_norm = False
@@ -44,8 +44,8 @@ class agriculture_configs(object):
     # check point parameters
     ckpt_path = '../ckpt'
     snapshot = ''
-    # print_freq = 100
-    print_freq = 5
+    print_freq = 100
+    # print_freq = 5
     save_pred = False
     save_rate = 0.1
     best_record = {}
