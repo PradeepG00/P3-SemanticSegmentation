@@ -53,8 +53,10 @@ train_args.input_size = [512, 512]
 train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
 train_args.val_size = [512, 512]
 train_args.node_size = (32, 32)
-train_args.train_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
-train_args.val_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
+# train_args.train_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
+# train_args.val_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
+train_args.train_batch = 10  # TODO: updated from 10 to 1 to assess mem leak issue
+train_args.val_batch = 10  # TODO: updated from 10 to 1 to assess mem leak issue
 
 train_args.lr = 1.5e-4 / np.sqrt(3)
 train_args.weight_decay = 2e-5
@@ -64,7 +66,8 @@ train_args.max_iter = 1e8
 
 train_args.snapshot = ''
 
-train_args.print_freq = 5  # TODO: updated from 100 to 5 to observe mem leak issue
+# train_args.print_freq = 5  # TODO: updated from 100 to 5 to observe mem leak issue
+train_args.print_freq = 100  # TODO: updated from 100 to 5 to observe mem leak issue
 train_args.save_pred = False
 # output training configuration to a text file
 train_args.ckpt_path = os.path.abspath(os.curdir)
@@ -164,8 +167,8 @@ def main():
 
                     starttime = newtime
 
-                validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep,
-                         new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
+            validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep,
+                     new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
 
             new_ep += 1
     except Exception as e:
