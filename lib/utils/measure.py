@@ -5,6 +5,13 @@ from sklearn.metrics import confusion_matrix
 
 
 def evaluate(predictions, gts, num_classes):
+    """Function for evaluating the collection of predictions given the set of ground-truths
+
+    :param predictions:
+    :param gts:
+    :param num_classes:
+    :return:
+    """
     conmatrix = np.zeros((num_classes, num_classes))
     labels = np.arange(num_classes).tolist()
     for lp, lt in zip(predictions, gts):

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+# from memory_profiler import profile
 import logging
 import sys
 import time
@@ -20,6 +21,7 @@ from lib.utils.lr import init_params_lr
 from lib.utils.measure import *
 from lib.utils.visual import *
 from tools.model import load_model
+
 #####################################
 # Setup Logging
 #####################################
@@ -51,8 +53,8 @@ train_args.input_size = [512, 512]
 train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
 train_args.val_size = [512, 512]
 train_args.node_size = (32, 32)
-train_args.train_batch = 1 #TODO: updated from 10 to 1 to assess mem leak issue
-train_args.val_batch = 1 #TODO: updated from 10 to 1 to assess mem leak issue
+train_args.train_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
+train_args.val_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
 
 train_args.lr = 1.5e-4 / np.sqrt(3)
 train_args.weight_decay = 2e-5
@@ -94,7 +96,7 @@ def main():
 
         net, start_epoch = train_args.resume_train(net)
         net.cuda()
-        net.train()
+        net.train
 
         # prepare dataset for training and validation
         train_set, val_set = train_args.get_dataset()
@@ -113,6 +115,7 @@ def main():
 
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
 
+        # loop for the specific epochs for training
         new_ep = 0
         while True:
             starttime = time.time()
@@ -126,6 +129,7 @@ def main():
             curr_iter = ((start_epoch + new_ep) - 1) * num_iter
             print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
 
+            # loop over training dataset for an epoch
             for i, (inputs, labels) in enumerate(train_loader):
                 sys.stdout.flush()
 
@@ -160,7 +164,8 @@ def main():
 
                     starttime = newtime
 
-                validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep, new_ep) # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
+                validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep,
+                         new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
 
             new_ep += 1
     except Exception as e:
@@ -168,16 +173,30 @@ def main():
 
 
 def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
+    """Function that validates the Rx50 Model aggregating all the inputs from
+    the `val_loader` to be pipelined for predictions, calculating of loss and checkpointing the model
+
+    :param net:
+    :param val_set:
+    :param val_loader:
+    :param criterion:
+    :param optimizer:
+    :param epoch:
+    :param new_ep:
+    :return:
+    """
     # TODO: there appears to be a memory leak here or a loading of ALL data issue
-    #   causing CPU RAM consumption to be extremely large
+    #   causing CPU RAM consumption to be extremely large, likely needs to use a generator...
     logging.debug("validating and update model checkpoint")
     net.eval()
     val_loss = AverageMeter()
-    inputs_all, gts_all, predictions_all = [], [], []
+    inputs_all, gts_all, predictions_all = [], [], []  # TODO: bad practice...?
+    logging.debug(f"validation loader size {len(val_loader)}")
 
+    # evaluate w/o gradients b/c no need to calculate gradients for the outputs
     with torch.no_grad():
         logging.debug("aggregating input, predictions, and ground truths using CPU")
-        i = 0
+        i = 0 # DEBUG
         for vi, (inputs, gts) in enumerate(val_loader):
             logging.debug(f"aggregate input, prediction, ground-truth -- iteration {i}")
             # newsize = random.uniform(0.87, 1.78)
@@ -201,7 +220,11 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             predictions = outputs.data.max(1)[1].squeeze(1).squeeze(0).cpu().numpy()
             predictions_all.append(predictions)
 
-            i += 1
+            i += 1 # DEBUG
+            logging.debug(f"inputs {len(inputs_all)}, ground-truths {len(gts_all)}")
+            # logging.debug(sys.deep_getsizeof(gts_all))
+            # logging.debug(sys.getsizeof(inputs_all))
+            # logging.debug(sys.getsizeof(predictions_all))
 
     update_ckpt(net, optimizer, epoch, new_ep, val_loss,
                 inputs_all, gts_all, predictions_all)
@@ -212,6 +235,19 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
 
 def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
                 inputs_all, gts_all, predictions_all):
+    """TODO: needs refactor to find the acc, acc_clr, mean_iu, fwavacc, f1 on a single instance instead of on the collection which is
+    RAM intensive
+
+    :param net:
+    :param optimizer:
+    :param epoch:
+    :param new_ep:
+    :param val_loss:
+    :param inputs_all:
+    :param gts_all:
+    :param predictions_all:
+    :return:
+    """
     avg_loss = val_loss.avg
 
     acc, acc_cls, mean_iu, fwavacc, f1 = evaluate(predictions_all, gts_all, train_args.nb_classes)
@@ -225,7 +261,7 @@ def update_ckpt(net, optimizer, epoch, new_ep, val_loss,
 
     updated = train_args.update_best_record(epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1)
 
-    # save best record and snapshot prameters
+    # save best record and snapshot parameters
     val_visual = []
 
     snapshot_name = train_args.model_name + "-" + 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_%.5f_f1_%.5f_lr_%.10f' % (
