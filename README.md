@@ -26,7 +26,6 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 ├── tools		# train and test code, ckpt and model_load
 ├── lib			# model block, loss, utils code, etc
 └── ckpt 		# output check point, trained weights, log files, etc
-
 ```
 
 ### Dependencies
@@ -87,7 +86,7 @@ Agriculture-Vision
 
 ## [IMPORTANT] How-to-Train 
 __NOTE__ the current implementation __requires an NVIDIA GPU__   
-
+###  Solution to Memory Issues on a Linux Machine (Ubuntu 20.04)
 1. Set up the necessary memory to support training __NOTE__ this requires editing the `swap` memory file to allow up to __150gb__ of memory due to the existing implementation
 ```
 # linux
