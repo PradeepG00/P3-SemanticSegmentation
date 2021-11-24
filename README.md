@@ -5,10 +5,10 @@
 - [Getting Started](#getting-started)
   - [Project File Structure](#project-file-structure)
   - [Dependencies](#dependencies)
-  - [Installation](#prerequisites)
-  - [Dataset Preparation](#dataset-preparation)
+  - [Installation](#installation)
 - [Usage](#usage)
-  - [How to Train](#how-to-run)
+  - [Dataset Preparation](#dataset-preparation)
+  - [How to Train](#how-to-train)
 <!-- /TOC -->
 
 
@@ -21,11 +21,13 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 ### Project File Structure
 
 ```
-├── config		# config code
-├── data		# dataset loader and pre-processing code
-├── tools		# train and test code, ckpt and model_load
-├── lib			# model block, loss, utils code, etc
-└── ckpt 		# output check point, trained weights, log files, etc
+├── checkpoints # output check point, trained weights, log files, tensorboard, etc
+├── logs        # model runtime log and function tracing
+├── models
+├── train.py    # TODO: implement CLI using Click
+├── train_R101.py
+├── train_R50.py
+└── utils       # model block, loss, utils code, # dataset loader and pre-processing code, config code, etc
 ```
 
 ### Dependencies
@@ -42,9 +44,11 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 1. Configure your environment using either `virtual environment`, `anaconda`, or your choice of an environment manager
 2. Run the following install the `mscg-net` package dependencies while in the project root directory
 ```bash
-pip install -r requirements.txt # install mscg-net dependencies
-pip install -e .  # install mscg-net as a package which resolves the issue of pathing
+pip install -r requirements.txt # install mscg-models dependencies
+pip install -e .  # install mscg-models as a package which resolves the issue of pathing
 ```
+
+## Usage
 
 ### Dataset Preparation
 __NOTE__ the current implementation has been hardcoded to support the [2021 dataset](https://www.agriculture-vision.com/agriculture-vision-2021/dataset-2021) 
@@ -84,29 +88,29 @@ Agriculture-Vision
 
 [comment]: <> (   - A quick-fix for this is remove the  )
 
-## [IMPORTANT] How-to-Train 
+### How to Train 
 __NOTE__ the current implementation __requires an NVIDIA GPU__   
 ###  Solution to Memory Issues on a Linux Machine (Ubuntu 20.04)
-1. Set up the necessary memory to support training __NOTE__ this requires editing the `swap` memory file to allow up to __150gb__ of memory due to the existing implementation
+1.  __IMPORTANT__ Set up the necessary memory to support training __NOTE__ this requires editing the `swap` memory file to allow up to __150gb__ of memory due to the existing implementation
 ```
 # linux
 sudo swapoff -a       # disable the current swap memory file
-sudo fallocate -l <amount > 120>G /swapfile  # specify swap memory size  
+sudo fallocate -l <amount greater than 120>G /swapfile  # specify swap memory size  
 sudo chmod 600 /swapfile  # configure user permissions 
 sudo mkswap /swapfile   # create the swapfile
 sudo swapon /swapfile   # enable the newly created swap memory file
 ```
 2. Run the following to train while inside the project root
 ```bash
-python ./tools/train_R50.py
-python ./tools/train_R101.py
+python ./train_R50.py
+python ./train_R101.py
 ```
 
 ### Remarks
 ```
-CUDA_VISIBLE_DEVICES=0 python ./tools/train_R50.py  # trained weights ckpt1
-# train_R101.py 								    # trained weights, ckpt2
-# train_R101_k31.py 							    # trained weights, ckpt3
+CUDA_VISIBLE_DEVICES=0 python ./tools/train_R50.py  # trained weights checkpoint1
+# train_R101.py 								    # trained weights, checkpoint2
+# train_R101_k31.py 							    # trained weights, checkpoint3
 ```
 
 **Please note that:** we first train these models using Adam combined with Lookahead as the optimizer
@@ -115,7 +119,7 @@ SGD in the remaining iterations. So you will have to **manually change the code 
 **to SGD** as follows:  
 
 ```
-# Change line 48: Copy the file name ('----.pth') of the best ckpt trained with Adam
+# Change line 48: Copy the file name ('----.pth') of the best checkpoint trained with Adam
 train_args.snapshot = '-------.pth'
 ...
 # Comment line 92
@@ -128,26 +132,26 @@ base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
 ## Test with a single GPU
 
 ```
-# To reproduce the leaderboard results (0.608), download the trained-weights ckpt1,2,3
-# and save them with the original names into ./ckpt folder before run test_submission.py
+# To reproduce the leaderboard results (0.608), download the trained-weights checkpoint1,2,3
+# and save them with the original names into ./checkpoint folder before run test_submission.py
 CUDA_VISIBLE_DEVICES=0 python ./tools/test_submission.py
 ```
 
-#### Trained weights for  3 models download (save them to ./ckpt before run test_submission)
-[ckpt1](https://drive.google.com/open?id=1eVvUd4TVUtEe_aUgKamUrDdSlrIGHuH3),[ckpt2](https://drive.google.com/open?id=1vOlS4LfHGnWIUpqTFB2a07ndlpBxFmVE),[ckpt3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
+#### Trained weights for  3 models download (save them to ./checkpoint before run test_submission)
+[checkpoint1](https://drive.google.com/open?id=1eVvUd4TVUtEe_aUgKamUrDdSlrIGHuH3),[checkpoint2](https://drive.google.com/open?id=1vOlS4LfHGnWIUpqTFB2a07ndlpBxFmVE),[checkpoint3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
 
 ## Results Summary
 
 | Models                              | mIoU (%)        | Background      | Cloud shadow    | Double plant    | Planter skip    | Standing water  | Waterway        | Weed cluster    |
 | ----------------------------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- |
-| MSCG-Net-50 (ckpt1)                 | 54.7            | 78.0            | 50.7            | 46.6            | 34.3            | 68.8            | 51.3            | 53.0            |
-| ***MSCG-Net-101 (ckpt2)***          | ***55.0***      | ***79.8***      | ***44.8***      | ***55.0***      | ***30.5***      | ***65.4***      | ***59.2***      | ***50.6***      |
-| MSCG-Net-101_k31 (ckpt3)            | 54.1            | 79.6            | 46.2            | 54.6            | 9.1             | 74.3            | 62.4            | 52.1            |
-| Ensemble_TTA (ckpt1,2)              | 59.9            | 80.1            | 50.3            | 57.6            | 52.0            | 69.6            | 56.0            | 53.8            |
-| <u>**Ensemble_TTA (ckpt1,2,3)**</u> | 60.8 | 80.5 | <u>**51.0**</u> | 58.6 | 49.8 | <u>**72.0**</u> | 59.8 | <u>**53.8**</u> |
+| MSCG-Net-50 (checkpoint1)                 | 54.7            | 78.0            | 50.7            | 46.6            | 34.3            | 68.8            | 51.3            | 53.0            |
+| ***MSCG-Net-101 (checkpoint2)***          | ***55.0***      | ***79.8***      | ***44.8***      | ***55.0***      | ***30.5***      | ***65.4***      | ***59.2***      | ***50.6***      |
+| MSCG-Net-101_k31 (checkpoint3)            | 54.1            | 79.6            | 46.2            | 54.6            | 9.1             | 74.3            | 62.4            | 52.1            |
+| Ensemble_TTA (checkpoint1,2)              | 59.9            | 80.1            | 50.3            | 57.6            | 52.0            | 69.6            | 56.0            | 53.8            |
+| <u>**Ensemble_TTA (checkpoint1,2,3)**</u> | 60.8 | 80.5 | <u>**51.0**</u> | 58.6 | 49.8 | <u>**72.0**</u> | 59.8 | <u>**53.8**</u> |
 | <u>**Ensemble_TTA (new_5model)**</u> | <u>**62.2**</u> | <u>**80.6**</u> | 48.7 |<u>**62.4**</u> | <u>**58.7**</u> | 71.3| <u>**60.1**</u> | 53.4 |
 
-Please note that all our single model's scores are computed with just single-scale (512x512) and single feed-forward inference without TTA. TTA denotes test time augmentation (e.g. flip and mirror). Ensemble_TTA (ckpt1,2) denotes two models (ckpt1, and ckpt2) ensemble with TTA, and (ckpt1, 2, 3) denotes three models ensemble. 
+Please note that all our single model's scores are computed with just single-scale (512x512) and single feed-forward inference without TTA. TTA denotes test time augmentation (e.g. flip and mirror). Ensemble_TTA (checkpoint1,2) denotes two models (checkpoint1, and checkpoint2) ensemble with TTA, and (checkpoint1, 2, 3) denotes three models ensemble. 
 
 ### Model Size
 
