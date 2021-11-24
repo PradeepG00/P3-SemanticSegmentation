@@ -1,8 +1,24 @@
 # MSCG-Net for Semantic Segmentation
-## Introduce
+
+<!-- TOC -->
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+  - [Project File Structure](#project-file-structure)
+  - [Dependencies](#dependencies)
+  - [Installation](#prerequisites)
+  - [Dataset Preparation](#dataset-preparation)
+- [Usage](#usage)
+  - [How to Train](#how-to-run)
+<!-- /TOC -->
+
+
+
+## Overview
 This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for semantic segmentation in [Agriculture-Vision Challenge and Workshop](https://github.com/SHI-Labs/Agriculture-Vision) (CVPR 2020), and the pipeline of training and testing models, implemented in PyTorch. Please refer to our paper for details:  [Multi-view SelfConstructing Graph Convolutional Networks with Adaptive Class Weighting Loss for Semantic Segmentation](http://openaccess.thecvf.com/content_CVPRW_2020/papers/w5/Liu_Multi-View_Self-Constructing_Graph_Convolutional_Networks_With_Adaptive_Class_Weighting_Loss_CVPRW_2020_paper.pdf)
 
-## Code structure
+
+## Getting Started
+### Project File Structure
 
 ```
 ├── config		# config code
@@ -10,10 +26,9 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 ├── tools		# train and test code, ckpt and model_load
 ├── lib			# model block, loss, utils code, etc
 └── ckpt 		# output check point, trained weights, log files, etc
-
 ```
 
-## Environments
+### Dependencies
 
 - python 3.5+
 - pytorch 1.4.0
@@ -23,14 +38,22 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 - pretrainedmodels 0.7.4
 - others (see requirements.txt)
 
-## Dataset prepare
+### Installation
+1. Configure your environment using either `virtual environment`, `anaconda`, or your choice of an environment manager
+2. Run the following install the `mscg-net` package dependencies while in the project root directory
+```bash
+pip install -r requirements.txt # install mscg-net dependencies
+pip install -e .  # install mscg-net as a package which resolves the issue of pathing
+```
 
-1. change DATASET_ROOT to your dataset path in ./data/AgricultureVision/pre_process.py
+### Dataset Preparation
+__NOTE__ the current implementation has been hardcoded to support the [2021 dataset](https://www.agriculture-vision.com/agriculture-vision-2021/dataset-2021) 
+1. Change `DATASET_ROOT` to your dataset path in `./data/AgricultureVision/pre_process.py`
 ```
 DATASET_ROOT = '/your/path/to/Agriculture-Vision'
 ```
 
-2. keep the dataset structure as the same with the official structure shown as below
+2. Keep the dataset structure as the same with the official structure shown as below
 ```
 Agriculture-Vision
 |-- train
@@ -55,12 +78,35 @@ Agriculture-Vision
 |   |-- masks
 ```
 
-## Train with a single GPU
+[comment]: <> (#### Dataset Preparation: Known Pitfalls / Errors)
 
+[comment]: <> (1. The current implementation __does NOT properly checks for proper generation of ground-truth__ files)
+
+[comment]: <> (   - A quick-fix for this is remove the  )
+
+## [IMPORTANT] How-to-Train 
+__NOTE__ the current implementation __requires an NVIDIA GPU__   
+###  Solution to Memory Issues on a Linux Machine (Ubuntu 20.04)
+1. Set up the necessary memory to support training __NOTE__ this requires editing the `swap` memory file to allow up to __150gb__ of memory due to the existing implementation
+```
+# linux
+sudo swapoff -a       # disable the current swap memory file
+sudo fallocate -l <amount > 120>G /swapfile  # specify swap memory size  
+sudo chmod 600 /swapfile  # configure user permissions 
+sudo mkswap /swapfile   # create the swapfile
+sudo swapon /swapfile   # enable the newly created swap memory file
+```
+2. Run the following to train while inside the project root
+```bash
+python ./tools/train_R50.py
+python ./tools/train_R101.py
+```
+
+### Remarks
 ```
 CUDA_VISIBLE_DEVICES=0 python ./tools/train_R50.py  # trained weights ckpt1
-# train_R101.py 								 # trained weights, ckpt2
-# train_R101_k31.py 							  # trained weights, ckpt3
+# train_R101.py 								    # trained weights, ckpt2
+# train_R101_k31.py 							    # trained weights, ckpt3
 ```
 
 **Please note that:** we first train these models using Adam combined with Lookahead as the optimizer

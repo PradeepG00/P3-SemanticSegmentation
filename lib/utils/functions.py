@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from pil import Image, ImageEnhance
+from PIL import Image, ImageEnhance
 
 def torch_none(x: Tensor):
     return x
