@@ -7,7 +7,7 @@ import setuptools
 
 setuptools.setup(
     # defined as the cli package (Note the naming)
-    name='mscg-net',
+    name='mscgnet',
     version='0.1.0',
     author="",
     author_email="",
@@ -19,6 +19,8 @@ setuptools.setup(
         'Click',
     ],
     entry_points='''
+    [console_scripts]
+    mscgnet=cli.main:cli
     ''',
     python_requires=">=3.6"
 )
