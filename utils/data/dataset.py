@@ -13,6 +13,15 @@ cv2.ocl.setUseOpenCL(False)
 class AgricultureDataset(Dataset):
     def __init__(self, mode='train', file_lists=None, win_size=(256, 256),
                  num_samples=10000, pre_norm=False, scale=1.0 / 1.0):
+        """
+
+        :param mode:
+        :param file_lists:
+        :param win_size:
+        :param num_samples:
+        :param pre_norm:
+        :param scale:
+        """
         assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.norm = pre_norm
@@ -73,7 +82,7 @@ class AgricultureDataset(Dataset):
 
     @classmethod
     def train_augmentation(cls, img, mask):
-        aug = Compose([
+        augment = Compose([
             VerticalFlip(p=0.5),
             HorizontalFlip(p=0.5),
             RandomRotate90(p=0.5),
@@ -85,8 +94,8 @@ class AgricultureDataset(Dataset):
             # ChannelShuffle(p=0.1),
         ])
 
-        auged = aug(image=img, mask=mask)
-        return auged['image'], auged['mask']
+        augmented = augment(image=img, mask=mask)
+        return augmented['image'], augmented['mask']
 
     @classmethod
     def val_augmentation(cls, img, mask):
@@ -96,8 +105,8 @@ class AgricultureDataset(Dataset):
             RandomRotate90(p=0.5),
         ])
 
-        auged = aug(image=img, mask=mask)
-        return auged['image'], auged['mask']
+        augmented = aug(image=img, mask=mask)
+        return augmented['image'], augmented['mask']
 
     @classmethod
     def normalize(cls, img):

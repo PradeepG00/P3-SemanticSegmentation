@@ -4,8 +4,18 @@ Utilities
 
 Checkpoint
 -------------
+Hello world
+Hello world
+Hello world
+
 .. automodule:: utils.checkpoint
    :members:
+
+Loss
+-------------
+.. automodule:: utils.loss
+   :members:
+   :special-members: __init__, __name__
 
 Configuration
 -------------

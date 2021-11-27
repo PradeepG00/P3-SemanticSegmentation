@@ -6,14 +6,16 @@ import torch.nn.functional as F
 class ACWLoss(nn.Module):
     def __init__(self, ini_weight=0, ini_iteration=0, eps=1e-5, ignore_index=255):
         """Adaptive Class Weighting Loss is the loss function class for handling the highly imbalanced distribution
-        of images Multi-class adaptive class loss function:
+        of images Multi-class adaptive class loss function
+
+        **Adaptive Class Weighting Loss**
 
         .. math::
 
-            L_{acw}=\\frac{1}{|Y|}\\sum_{i\\in Y}\\sum_{j\\in C} \\tilde{w}_{ij}\\times p_{ij}-\\log{\\left \\(
-            \\text{ MEAN\\{d_j| j\\in C\\} \\right\\)}
+            L_{acw}=\\frac{1}{|Y|}\\sum_{i\\in Y}\\sum_{j\\in C}{\\tilde{w}_{ij}\\times p_{ij} -log{( \\text{
+            MEAN}\\{ d_j| j\\in C \\} )} }
 
-        Dice coefficient:
+        **Dice coefficient**
 
         .. math::
 
@@ -45,7 +47,7 @@ class ACWLoss(nn.Module):
         err = torch.pow((one_hot_label - pred), 2)
         # one = torch.ones_like(err)
 
-        pnc = err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
+        pnc = self.pnc(err)
         loss_pnc = torch.sum(acw * pnc, 1)
 
         intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
@@ -59,7 +61,47 @@ class ACWLoss(nn.Module):
 
         return loss_pnc.mean() - dice.mean().log()
 
+    def pnc(self, err):
+        """Apply positive-negative class balanced function (PNC)
+
+        **PNC**
+        .. math::
+            p = e - \\log(\\frac{1-e}{1+e})\\mid e=(y-\\tilde{y})^2
+
+        :param err:
+        :return:
+        """
+        return err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
+
     def adaptive_class_weight(self, pred, one_hot_label, mask=None):
+        """Adaptive Class Weighting (ACW) computed based on the iterative batch-wise
+        class derived from the median frequency to balance weights.
+
+        **ACW**
+
+        .. math::
+            \\tilde{w}_{ij}=\\frac{ w^t_j}
+            { \\sum_{j\\in C}(w^t_j) }\\times (1 + y_{ij} + \\tilde{y}_{ij})
+
+        **Iterative Median Frequency Class Weights**
+
+        .. math::
+
+            w^t_j=\\frac{\\text{MEDIAN(\\{   f^t_j|j\\in C\\})}}
+            {f^t_j+\\epsilon}\\mid\\epsilon=10^{-5}
+
+        **Pixel Frequency**
+
+        .. math::
+            f^t_j=\\frac{\\hat{f^t_j}+(t-1)\\times f^{t-1}_j}
+            {t} \\mid t\\in \\{1,2,...,\\infty\\}
+
+
+        :param pred:
+        :param one_hot_label:
+        :param mask:
+        :return:
+        """
         self.itr += 1
 
         sum_class = torch.sum(one_hot_label, dim=(0, 2, 3))

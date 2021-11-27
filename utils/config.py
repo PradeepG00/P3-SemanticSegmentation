@@ -1,9 +1,11 @@
 import datetime
-
+import yaml
 from utils.data.dataset import *
+from pathlib import Path
 
 
 class AgricultureConfiguration(object):
+    root_path = Path("/home/hanz/github/P3-SemanticSegmentation")
     model_name = 'none'
     # data set parameters
     dataset = 'Agriculture'
@@ -40,7 +42,7 @@ class AgricultureConfiguration(object):
     momentum = 0.9
 
     # check point parameters
-    checkpoint_path = '../checkpoints'
+    checkpoint_path = root_path / "checkpoints"
     snapshot = ''
     print_freq = 100
     # print_freq = 5
@@ -48,7 +50,16 @@ class AgricultureConfiguration(object):
     save_rate = 0.1
     best_record = {}
 
-    def __init__(self, net_name=model_name, data=dataset, bands_list=bands, kf=1, k_folder=5, note=''):
+    def __init__(self, net_name=model_name, data=dataset, bands_list=bands, kf=1, k_folder=5, note='', optimizer="adam"):
+        """
+
+        :param net_name:
+        :param data:
+        :param bands_list:
+        :param kf:
+        :param k_folder:
+        :param note:
+        """
         self.model_name = net_name
         self.dataset = data
         self.bands = bands_list
@@ -84,7 +95,16 @@ class AgricultureConfiguration(object):
                               num_samples=self.val_samples, win_size=self.val_size, scale=self.scale_rate)
         return train_set, val_set
 
-    def resume_train(self, net):
+    def resume_train(self, net, checkpoint_path: str):
+        """Function for loading in a model for resuming training
+
+        :param net:
+        :param checkpoint_path:
+        :return:
+        """
+        if checkpoint_path:
+            print("Loading model from checkpoint:", checkpoint_path)
+            net.load_state_dict(torch.load(checkpoint_path))
         if len(self.snapshot) == 0:
             curr_epoch = 1
             self.best_record = {'epoch': 0, 'val_loss': 0, 'acc': 0, 'acc_cls': 0, 'mean_iu': 0, 'fwavacc': 0,
@@ -151,3 +171,27 @@ class AgricultureConfiguration(object):
 def check_mkdir(dir_name):
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
+
+
+if __name__ == "__main__":
+    import re
+    import json
+
+    loader = yaml.SafeLoader
+    loader.add_implicit_resolver(
+        u'tag:yaml.org,2002:float',
+        re.compile(u'''^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$''', re.X),
+        list(u'-+0123456789.'))
+
+    with open("../data/config.yml", 'r') as fh:
+        config = yaml.load(fh, Loader=loader)
+        print(config)
+    with open("../data/config.json", 'w') as fh:
+        json.dump(config, fh, indent=4)
+    pass

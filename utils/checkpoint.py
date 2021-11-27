@@ -7,8 +7,8 @@ from models.mscg import *
 checkpoint1 = {
     'models': 'MSCG-Rx50',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../checkpoints/epoch_8_loss_0.99527_acc_0.82278_acc-cls_0.60967_'
                 'mean-iu_0.48098_fwavacc_0.70248_f1_0.62839_lr_0.0000829109.pth'
 }
@@ -17,31 +17,36 @@ checkpoint1 = {
 checkpoint2 = {
     'models': 'MSCG-Rx101',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../checkpoints/epoch_15_loss_1.03019_acc_0.83952_acc-cls_0.70245_'
                 'mean-iu_0.54833_fwavacc_0.73482_f1_0.69034_lr_0.0001076031.pth'
 
 }
 
-
 checkpoint3 = {
     'models': 'MSCG-Rx101',
     'data': 'Agriculture',
-    'bands': ['NIR','RGB'],
-    'nodes': (32,32),
+    'bands': ['NIR', 'RGB'],
+    'nodes': (32, 32),
     'snapshot': '../checkpoints/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_'
                 'mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth'
 }
+
 
 # checkpoint1 + checkpoint2, test score 0.599,
 # checkpoint1 + checkpoint2 + checkpoint3, test score 0.608
 
 
 def get_net(checkpoint=checkpoint1):
-    net = load_model(name=checkpoint['models'],
-                     classes=7,
-                     node_size=checkpoint['nodes'])
+    """Function for loading an MSCG-Net from a .pth checkpoint file path
+
+    :param checkpoint:
+    :return:
+    """
+    net = get_model(name=checkpoint['models'],
+                    classes=7,
+                    node_size=checkpoint['nodes'])
 
     net.load_state_dict(torch.load(checkpoint['snapshot']))
     net.cuda()
@@ -50,7 +55,12 @@ def get_net(checkpoint=checkpoint1):
 
 
 def load_test_img(test_files):
+    """Load the set of test images
+    TODO: what is data struct of test_files?
 
+    :param test_files:
+    :return:
+    """
     id_dict = test_files[IDS]
     image_files = test_files[IMG]
     # mask_files = test_files[GT]
@@ -87,6 +97,11 @@ def load_test_img(test_files):
 
 
 def load_ids(test_files):
+    """
+
+    :param test_files:
+    :return:
+    """
     id_dict = test_files[IDS]
 
     for key in id_dict.keys():
@@ -95,6 +110,12 @@ def load_ids(test_files):
 
 
 def load_gt(test_files):
+    """Generator function for loading the set of test files from
+    TODO: what is the type/datastruct of `test_files`?
+
+    :param test_files:
+    :return:
+    """
     id_dict = test_files[IDS]
     mask_files = test_files[GT]
     for key in id_dict.keys():

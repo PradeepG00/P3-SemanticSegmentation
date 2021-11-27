@@ -4,19 +4,32 @@ import torch.nn.functional as F
 from pretrainedmodels import se_resnext50_32x4d, se_resnext101_32x4d
 
 
-def load_model(name='MSCG-Rx50', classes=7, node_size=(32, 32)):
+# TODO: add data parallelization
+
+def get_model(name='MSCG-Rx50', classes=7, node_size=(32, 32)) -> nn.Module:
+    """Function for loading an MSCG-Net
+
+    :param name:
+    :param classes:
+    :param node_size:
+    :return:
+    """
     if name == 'MSCG-Rx50':
         net = RX50GCN3Head4Channel(out_channels=classes)
     elif name == 'MSCG-Rx101':
         net = RX101GCN3Head4Channel(out_channels=classes)
     else:
-        print('not found the models')
-        return -1
+        raise Exception("MSCG-Net: model not found")
+        # return -1
 
     return net
 
 
 class RX50GCN3Head4Channel(nn.Module):
+    """
+
+    """
+
     def __init__(self, out_channels=7, pretrained=True,
                  nodes=(32, 32), dropout=0,
                  enhance_diag=True, aux_pred=True):
@@ -41,9 +54,9 @@ class RX50GCN3Head4Channel(nn.Module):
         self.conv0.parameters = torch.cat([par[:, 0, :, :].unsqueeze(1), par], 1)
         self.layer0 = torch.nn.Sequential(self.conv0, *list(self.layer0)[1:4])
 
-        self.graph_layers1 = GCN_Layer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
+        self.graph_layers1 = GCNLayer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
 
-        self.graph_layers2 = GCN_Layer(128, out_channels, bnorm=False, activation=None)
+        self.graph_layers2 = GCNLayer(128, out_channels, bnorm=False, activation=None)
 
         self.scg = SCGBlock(in_ch=1024,
                             hidden_ch=out_channels,
@@ -56,7 +69,7 @@ class RX50GCN3Head4Channel(nn.Module):
     def forward(self, x):
         x_size = x.size()
 
-        gx = self.layer3(self.layer2(self.layer1(self.layer0(x))))
+        gx = self.layer3(self.layer2(self.layer1(self.layer0(x))))  # 3-hops
         gx90 = gx.permute(0, 1, 3, 2)
         gx180 = gx.flip(3)
         B, C, H, W = gx.size()
@@ -98,6 +111,15 @@ class RX101GCN3Head4Channel(nn.Module):
     def __init__(self, out_channels=7, pretrained=True,
                  nodes=(32, 32), dropout=0,
                  enhance_diag=True, aux_pred=True):
+        """
+
+        :param out_channels:
+        :param pretrained:
+        :param nodes:
+        :param dropout:
+        :param enhance_diag:
+        :param aux_pred:
+        """
         super(RX101GCN3Head4Channel, self).__init__()  # same with  res_fdcs_v5
 
         self.aux_pred = aux_pred
@@ -119,9 +141,9 @@ class RX101GCN3Head4Channel(nn.Module):
         self.conv0.parameters = torch.cat([par[:, 0, :, :].unsqueeze(1), par], 1)
         self.layer0 = torch.nn.Sequential(self.conv0, *list(self.layer0)[1:4])
 
-        self.graph_layers1 = GCN_Layer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
+        self.graph_layers1 = GCNLayer(1024, 128, bnorm=True, activation=nn.ReLU(True), dropout=dropout)
 
-        self.graph_layers2 = GCN_Layer(128, out_channels, bnorm=False, activation=None)
+        self.graph_layers2 = GCNLayer(128, out_channels, bnorm=False, activation=None)
 
         self.scg = SCGBlock(in_ch=1024,
                             hidden_ch=out_channels,
@@ -131,10 +153,21 @@ class RX101GCN3Head4Channel(nn.Module):
 
         weight_xavier_init(self.graph_layers1, self.graph_layers2, self.scg)
 
+    def init_weights(self):
+        pass
+
+    def apply(self, fn):
+        pass
+
     def forward(self, x):
+        """
+
+        :param x:
+        :return:
+        """
         x_size = x.size()
 
-        gx = self.layer3(self.layer2(self.layer1(self.layer0(x))))
+        gx = self.layer3(self.layer2(self.layer1(self.layer0(x))))  # 3 hops
         gx90 = gx.permute(0, 1, 3, 2)
         gx180 = gx.flip(3)
 
@@ -176,6 +209,9 @@ class RX101GCN3Head4Channel(nn.Module):
 
 class SCGBlock(nn.Module):
     def __init__(self, in_ch, hidden_ch=6, node_size=(32, 32), add_diag=True, dropout=0.2):
+        """
+
+        """
         super(SCGBlock, self).__init__()
         self.node_size = node_size
         self.hidden = hidden_ch
@@ -241,9 +277,9 @@ class SCGBlock(nn.Module):
 
     @classmethod
     def laplacian_matrix(cls, A, self_loop=False):
-        '''
+        """
         Computes normalized Laplacian matrix: A (B, N, N)
-        '''
+        """
         if self_loop:
             A = A + torch.eye(A.size(1), device=A.device).unsqueeze(0)
         # deg_inv_sqrt = (A + 1e-5).sum(dim=1).clamp(min=0.001).pow(-0.5)
@@ -254,10 +290,14 @@ class SCGBlock(nn.Module):
         return LA
 
 
-class GCN_Layer(nn.Module):
+class GCNLayer(nn.Module):
+    """
+
+    """
+
     def __init__(self, in_features, out_features, bnorm=True,
                  activation=nn.ReLU(), dropout=None):
-        super(GCN_Layer, self).__init__()
+        super(GCNLayer, self).__init__()
         self.bnorm = bnorm
         fc = [nn.Linear(in_features, out_features)]
         if bnorm:

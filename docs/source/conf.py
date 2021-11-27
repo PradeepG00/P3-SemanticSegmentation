@@ -1,3 +1,9 @@
+# sphinx-math-dollar
+# from sphinx_math_dollar import NODE_BLACKLIST
+# from docutils.nodes import header
+#
+# math_dollar_node_blacklist = NODE_BLACKLIST + (header,)
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -12,15 +18,14 @@
 #
 import os
 import sys
+
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../..'))
-
 
 import sphinx_rtd_theme
 from sphinx_rtd_theme import __version__ as theme_version
 from sphinx_rtd_theme import __version_full__ as theme_version_full
 from sphinx.locale import _
-
 
 # -- Project information -----------------------------------------------------
 
@@ -36,8 +41,18 @@ extensions = [
     "sphinx_click",
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
+    # 'sphinx_math_dollar', # sphinx-math-dollar
+    # 'sphinx.ext.mathjax', # sphinx-math-dollar
     "sphinx.ext.napoleon",
 ]
+
+# sphinx-math-dollar
+# mathjax_config = {
+#     'tex2jax': {
+#         'inlineMath': [ ["\\(","\\)"] ],
+#         'displayMath': [["\\[","\\]"] ],
+#     },
+# }
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -54,7 +69,6 @@ language = "en"
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
-
 
 # -- Options for HTML output -------------------------------------------------
 

@@ -4,31 +4,46 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 # from memory_profiler import profile
-import logging
+import os.path
+
 import sys
 import time
+
+import torch.cuda
 import torchvision.utils as vutils
-from utils.loss import *
+from utils.model.loss import *
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
+from utils.gpu import get_available_gpus
 from utils.config import *
-from utils.lookahead import *
-from utils.lr import init_params_lr
+from utils.model.optimizer import *
+from utils.model.lr import init_params_lr
 from utils.validate import *
 from utils.visual import *
-from models.mscg import load_model
+from models.mscg import get_model
 
 #####################################
 # Setup Logging
 #####################################
+import logging
+
+# TODO: figure out the system for training given the config of the text file which specifies a .pth checkpoint to allow for resuming of a certain state of training
 logging.basicConfig(level=logging.DEBUG)
 logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 rootLogger = logging.getLogger()
 
-fileHandler = logging.FileHandler("./logs/{0}/{1}.log".format("./", f"rx50-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"))
+log_path = "./logs/{0}/{1}.log".format("/rx50", f"rx50-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}")
+log_dir = "./logs/rx50"
+if os.path.exists(log_dir):
+    print("Saving log files to:", log_dir)
+else:
+    raise FileNotFoundError("Log path directory", log_dir, "does not exist")
+    # sys.exit(1)
+fileHandler = logging.FileHandler(
+    log_path)
 fileHandler.setFormatter(logFormatter)
 rootLogger.addHandler(fileHandler)
 
@@ -67,9 +82,13 @@ train_args.snapshot = ''
 
 # train_args.print_freq = 5  # TODO: updated from 100 to 5 to observe mem leak issue
 train_args.print_freq = 100  # TODO: updated from 100 to 5 to observe mem leak issue
-train_args.save_pred = False
+train_args.save_pred = True  # False DEFAULT
 # output training configuration to a text file
 train_args.checkpoint_path = os.path.abspath(os.curdir)
+if not os.path.exists(train_args.save_path):
+    raise NotADirectoryError(train_args.save_path, "does not exist")
+else:
+    logging.debug("Verified existing path: {}".format(train_args.save_path))
 
 writer = SummaryWriter(os.path.join(train_args.save_path, 'tblog'))
 visualize, restore = get_visualize(train_args)
@@ -87,17 +106,35 @@ def random_seed(seed_value, use_cuda=True):
         torch.backends.cudnn.benchmark = False
 
 
+
+# TODO: add configuring to train on a specified GPU
+# TODO: add displaying of available GPUs and current usage
 def train_rx50():
     try:
+        # DEBUG gpu selection TODO: need to allow for specification of gpu when training
+        gpus = get_available_gpus(100, "mb")
+        print(gpus)
+
+        # logging
         prepare_gt(VAL_ROOT)
         prepare_gt(TRAIN_ROOT)
         random_seed(train_args.seeds)
         train_args.write2txt()
-        net = load_model(name=train_args.model_name, classes=train_args.nb_classes,
-                         node_size=train_args.node_size)
+        net = get_model(name=train_args.model_name, classes=train_args.nb_classes,
+                        node_size=train_args.node_size)
 
-        net, start_epoch = train_args.resume_train(net)
+        tblog_path = os.path.join(train_args.save_path, 'tblog')
+        if os.path.exists(tblog_path):
+            logging.debug("Logging TensorBoard results to: {}".format(tblog_path))
+        else:
+            logging.debug("TensorBoard directory does not exist. Creating directory in: {}".format(tblog_path))
+            os.mkdir(tblog_path)
+
+        # configure to use GPU
+        torch.cuda.set_device(1)
         net.cuda()
+        checkpoint_path = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_4_loss_1.12978_acc_0.75406_acc-cls_0.52140_mean-iu_0.38946_fwavacc_0.61162_f1_0.52750_lr_0.0000856692.pth"
+        net, start_epoch = train_args.resume_train(net, checkpoint_path=checkpoint_path)
         net.train()
 
         # prepare dataset for training and validation
@@ -120,23 +157,29 @@ def train_rx50():
         # loop for the specific epochs for training
         new_ep = 0
         while True:
-            starttime = time.time()
+            start_time = time.time()
             train_main_loss = AverageMeter()
             aux_train_loss = AverageMeter()
-            cls_trian_loss = AverageMeter()
+            cls_train_loss = AverageMeter()
 
             start_lr = train_args.lr
             train_args.lr = optimizer.param_groups[0]['lr']
             num_iter = len(train_loader)
             curr_iter = ((start_epoch + new_ep) - 1) * num_iter
             print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
+            logging.debug('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
 
+            if new_ep in [0, 2, 4, 6, 8, 10]:
+                train_args.save_pred = True
+            else:
+                train_args.save_pred = False
             # loop over training dataset for an epoch
             for i, (inputs, labels) in enumerate(train_loader):
                 sys.stdout.flush()
 
                 inputs, labels = inputs.cuda(), labels.cuda(),
                 N = inputs.size(0) * inputs.size(2) * inputs.size(3)
+                # print(inputs.shape) # DEBUG TODO: check for recreating in notebook for MVP desktop deployment
                 optimizer.zero_grad()
                 outputs, cost = net(inputs)
 
@@ -157,18 +200,21 @@ def train_rx50():
                 writer.add_scalar('lr', optimizer.param_groups[0]['lr'], curr_iter)
 
                 if (i + 1) % train_args.print_freq == 0:
-                    newtime = time.time()
+                    new_time = time.time()
 
                     print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
                           (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
-                           cls_trian_loss.avg,
-                           optimizer.param_groups[0]['lr'], newtime - starttime))
+                           cls_train_loss.avg,
+                           optimizer.param_groups[0]['lr'], new_time - start_time))
+                    logging.debug('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
+                          (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
+                           cls_train_loss.avg,
+                           optimizer.param_groups[0]['lr'], new_time - start_time))
 
-                    starttime = newtime
+                    start_time = new_time
 
             validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep,
-                 new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
-
+                     new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
             new_ep += 1
     except Exception as e:
         logging.debug(e)
@@ -198,9 +244,10 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
     # evaluate w/o gradients b/c no need to calculate gradients for the outputs
     with torch.no_grad():
         logging.debug("aggregating input, predictions, and ground truths using CPU")
-        i = 0 # DEBUG
+        i = 0  # DEBUG
+        start_time = time.time()
         for vi, (inputs, gts) in enumerate(val_loader):
-            logging.debug(f"aggregate input, prediction, ground-truth -- iteration {i}")
+            # logging.debug(f"aggregate input, prediction, ground-truth -- iteration {i}")
             # newsize = random.uniform(0.87, 1.78)
             # val_set.winsize = np.array([train_args.input_size[0] * newsize,
             #                             train_args.input_size[1] * newsize],
@@ -222,21 +269,24 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             predictions = outputs.data.max(1)[1].squeeze(1).squeeze(0).cpu().numpy()
             predictions_all.append(predictions)
 
-            i += 1 # DEBUG
-            logging.debug(f"inputs {len(inputs_all)}, ground-truths {len(gts_all)}")
+            i += 1  # DEBUG
+            # logging.debug(f"inputs {len(inputs_all)}, ground-truths {len(gts_all)}")
             # logging.debug(sys.deep_getsizeof(gts_all))
             # logging.debug(sys.getsizeof(inputs_all))
             # logging.debug(sys.getsizeof(predictions_all))
+        end_time = time.time()
+        logging.debug(f"aggregation time: {end_time - start_time} s ({(end_time - start_time)/60} min)")
 
+    #
     update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
-                inputs_all, gts_all, predictions_all)
+                      inputs_all, gts_all, predictions_all)
 
-    net.train()
-    return val_loss, inputs_all, gts_all, predictions_all
+    net.train()  #
+    return val_loss, inputs_all, gts_all, predictions_all  # TODO: is this necessary in the following function? is there another func dpcy
 
 
 def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
-                inputs_all, gts_all, predictions_all):
+                      inputs_all, gts_all, predictions_all):
     """TODO: needs refactor to find the acc, acc_clr, mean_iu, fwavacc, f1 on a single instance instead of on the collection which is
     RAM intensive
 
@@ -250,6 +300,7 @@ def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
     :param predictions_all:
     :return:
     """
+    logging.debug("Updating tensorboard")
     avg_loss = val_loss.avg
 
     acc, acc_cls, mean_iu, fwavacc, f1 = evaluate(predictions_all, gts_all, train_args.nb_classes)
@@ -268,12 +319,18 @@ def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
 
     snapshot_name = train_args.model_name + "-" + 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_' \
                                                   '%.5f_f1_%.5f_lr_%.10f' % (
-        epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
-    )
+                        epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
+                    )
+
+    logging.debug("checkpointing model at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
+    torch.save(net.state_dict(),
+               os.path.join(train_args.save_path, snapshot_name + '.pth'))
 
     if updated or (train_args.best_record['val_loss'] > avg_loss):
+        logging.debug("checkpointing model at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
         torch.save(net.state_dict(),
                    os.path.join(train_args.save_path, snapshot_name + '.pth'))
+
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
     if train_args.save_pred:
         if updated or (new_ep % 5 == 0):
@@ -289,6 +346,7 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
     val_visual = []
     if train_args.save_pred:
         to_save_dir = os.path.join(train_args.save_path, str(epoch) + '_' + str(new_ep))
+        logging.debug("creating save directory at: {}".format(to_save_dir))
         check_mkdir(to_save_dir)
 
     for idx, data in enumerate(zip(inputs_all, gts_all, predictions_all)):
@@ -307,6 +365,7 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
 
         # if train_args['val_save_to_img_file']:
         if train_args.save_pred:
+            logging.debug("Saving predictions, input, and ground-truths in: {}".format(to_save_dir))
             input_pil.save(os.path.join(to_save_dir, '%d_input.png' % idx))
             predictions_pil.save(os.path.join(to_save_dir, '%d_prediction.png' % idx))
             gt_pil.save(os.path.join(to_save_dir, '%d_gt.png' % idx))

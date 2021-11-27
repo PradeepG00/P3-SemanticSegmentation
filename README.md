@@ -9,6 +9,8 @@
 - [Usage](#usage)
   - [Dataset Preparation](#dataset-preparation)
   - [How to Train](#how-to-train)
+- [API Documentation](#api-documentation)
+
 <!-- /TOC -->
 
 
@@ -44,7 +46,7 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 1. Configure your environment using either `virtual environment`, `anaconda`, or your choice of an environment manager
 2. Run the following install the `mscg-net` package dependencies while in the project root directory
 ```bash
-pip install -r requirements.txt # install mscg-models dependencies
+pip install -r requirements.txt # install  mscg-models dependencies
 pip install -e .  # install mscg-models as a package which resolves the issue of pathing
 ```
 
@@ -162,6 +164,13 @@ Please note that all our single model's scores are computed with just single-sca
 | MSCG-Net-101_k31 | Se_ResNext101_32x4d | 30.99      | 37.86  | 752 / 45 ms                     |
 
 Please note that all backbones used pretrained weights on **ImageNet** that can be imported and downloaded from the [link](https://github.com/Cadene/pretrained-models.pytorch#senet). And MSCG-Net-101_k31 has exactly the same architecture wit MSCG-Net-101, while it is trained with extra 1/3 validation set (4,431) instead of just using the official training images (12,901). 
+
+
+## API Documentation
+Run the MAKEFILE using the following
+```
+sphinx-build -b html docs/source/ docs/build/
+```
 
 ## Citation: 
 Please consider citing our work if you find the code helps you

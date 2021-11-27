@@ -35,6 +35,16 @@ def main():
 
 
 def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512, 512)):
+    """
+
+    :param nets:
+    :param image:
+    :param scales:
+    :param batch_size:
+    :param num_class:
+    :param wsize:
+    :return:
+    """
     pred_all = np.zeros(image.shape[:2] + (num_class,))
     for scale_rate in scales:
         # print('scale rate: ', scale_rate)
@@ -87,6 +97,18 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512
 
 def tta_real_test(nets, all=False, labels=land_classes, norm=False,
                   test_set=None, stride=600, batch_size=5, window_size=(512, 512)):
+    """
+
+    :param nets:
+    :param all:
+    :param labels:
+    :param norm:
+    :param test_set:
+    :param stride:
+    :param batch_size:
+    :param window_size:
+    :return:
+    """
     # test_images, test_labels = (loadtestimg(test_set))
     test_files = (load_test_img(test_set))
     # gts = (loadgt(test_set))
@@ -143,10 +165,18 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
 
 
 def metrics(predictions, gts, label_values=land_classes):
+    """
+
+    :param predictions:
+    :param gts:
+    :param label_values:
+    :return:
+    """
     cm = confusion_matrix(
         gts,
         predictions,
-        range(len(label_values)))
+        range(len(label_values))
+    )
 
     print("Confusion matrix :")
     print(cm)
@@ -212,6 +242,12 @@ def count_sliding_window(top, step=10, window_size=(20, 20)):
 
 
 def grouper(n, iterable):
+    """
+
+    :param n:
+    :param iterable:
+    :return:
+    """
     it = iter(iterable)
     while True:
         chunk = tuple(itertools.islice(it, n))
@@ -221,6 +257,11 @@ def grouper(n, iterable):
 
 
 def check_mkdir(dir_name):
+    """
+
+    :param dir_name:
+    :return:
+    """
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
 
