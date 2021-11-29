@@ -3,7 +3,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+# TODO: figure out the system for training given the config of the text file which
+#  specifies a .pth checkpoint to allow for resuming of a certain state of training
+from utils.config import AgricultureConfiguration
+from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
+from utils.data.visual import colorize_mask, get_visualize
+from utils.metrics.loss import ACWLoss
+from utils.metrics.lr import init_params_lr
+from utils.metrics.optimizer import Lookahead
+from utils.metrics.validate import evaluate, AverageMeter
+from utils.trace.gpu import get_available_gpus
 # from memory_profiler import profile
+
 import datetime
 import os.path
 import random
@@ -29,6 +40,7 @@ from core.net import get_model
 #####################################
 import logging
 
+
 #################################################
 # Logging Configuration
 #################################################
@@ -36,12 +48,14 @@ import logging
 
 def setup_logging(model_name) -> None:
     logging.basicConfig(level=logging.DEBUG)
-    logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+    logFormatter = logging.Formatter(
+        "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
+    )
     rootLogger = logging.getLogger()
 
-
-    log_path = "./logs/{0}/{1}.log".format(f"/{model_name}",
-                                           f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}")
+    log_path = "./logs/{0}/{1}.log".format(
+        f"/{model_name}", f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"
+    )
     log_dir = f"./logs/{model_name}"
     if os.path.exists(log_dir):
         print("Saving log files to:", log_dir)
@@ -49,8 +63,7 @@ def setup_logging(model_name) -> None:
         print("Creating log directory:", log_dir)
         os.mkdir(log_dir)
 
-    fileHandler = logging.FileHandler(
-        log_path)
+    fileHandler = logging.FileHandler(log_path)
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
 
@@ -58,15 +71,6 @@ def setup_logging(model_name) -> None:
     consoleHandler.setFormatter(logFormatter)
     rootLogger.addHandler(consoleHandler)
 
-# TODO: figure out the system for training given the config of the text file which specifies a .pth checkpoint to allow for resuming of a certain state of training
-from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
-from utils.data.visual import colorize_mask, get_visualize
-from utils.metrics.loss import ACWLoss
-from utils.metrics.lr import init_params_lr
-from utils.metrics.optimizer import Lookahead
-from utils.metrics.validate import evaluate, AverageMeter
-from utils.trace.gpu import get_available_gpus
 
 #####################################
 # Training Configuration
@@ -75,15 +79,17 @@ model_name = "rx50"
 
 cudnn.benchmark = True
 
-train_args = AgricultureConfiguration(net_name='MSCG-Rx50',
-                                      data='Agriculture',
-                                      bands_list=['NIR', 'RGB'],
-                                      kf=0, k_folder=0,
-                                      note='reproduce_ACW_loss2_adax'
-                                      )
+train_args = AgricultureConfiguration(
+    net_name="MSCG-Rx50",
+    data="Agriculture",
+    bands_list=["NIR", "RGB"],
+    kf=0,
+    k_folder=0,
+    note="reproduce_ACW_loss2_adax",
+)
 
 train_args.input_size = [512, 512]
-train_args.scale_rate = 1.  # 256./512.  # 448.0/512.0 #1.0/1.0
+train_args.scale_rate = 1.0  # 256./512.  # 448.0/512.0 #1.0/1.0
 train_args.val_size = [512, 512]
 train_args.node_size = (32, 32)
 # train_args.train_batch = 1  # TODO: updated from 10 to 1 to assess mem leak issue
@@ -97,7 +103,7 @@ train_args.weight_decay = 2e-5
 train_args.lr_decay = 0.9
 train_args.max_iter = 1e8
 
-train_args.snapshot = ''
+train_args.snapshot = ""
 
 # train_args.print_freq = 5  # TODO: updated from 100 to 5 to observe mem leak issue
 train_args.print_freq = 100  # TODO: updated from 100 to 5 to observe mem leak issue
@@ -109,7 +115,7 @@ if not os.path.exists(train_args.save_path):
 else:
     logging.debug("Verified existing path: {}".format(train_args.save_path))
 
-tb_dir = os.path.join(train_args.save_path, 'tblog')
+tb_dir = os.path.join(train_args.save_path, "tblog")
 logging.debug("Saving tensorboard results to: {}".format(tb_dir))
 writer = SummaryWriter(tb_dir)
 visualize, restore = get_visualize(train_args)
@@ -137,40 +143,62 @@ def train_rx50():
         print(gpus)
 
         # logging
-        prepare_gt(VAL_ROOT)
-        prepare_gt(TRAIN_ROOT)
+        prepare_gt(VAL_ROOT)  # TODO: make configurable in CLI
+        prepare_gt(TRAIN_ROOT)  # TODO: make configurable in CLI
         random_seed(train_args.seeds)
         train_args.write2txt()
-        net = get_model(name=train_args.model_name,
-                        classes=train_args.nb_classes,
-                        node_size=train_args.node_size)
+        net = get_model(
+            name=train_args.model_name,
+            classes=train_args.nb_classes,
+            node_size=train_args.node_size,
+        )
 
-        tblog_path = os.path.join(train_args.save_path, 'tblog')
+        tblog_path = os.path.join(train_args.save_path, "tblog")  # TODO: make configurable in CLI
         if os.path.exists(tblog_path):
             logging.debug("Logging TensorBoard results to: {}".format(tblog_path))
         else:
-            logging.debug("TensorBoard directory does not exist. Creating directory in: {}".format(tblog_path))
+            logging.debug(
+                "TensorBoard directory does not exist. Creating directory in: {}".format(
+                    tblog_path
+                )
+            )
             os.mkdir(tblog_path)
 
-
-
-        # checkpoint_path = ""
+        # TODO: make configurable in CLI
         checkpoint_path = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_12_loss_1.10420_acc_0.77547_acc-cls_0.55716_mean-iu_0.39809_fwavacc_0.64953_f1_0.53728_lr_0.0000784454.pth"
-        net, start_epoch = train_args.resume_train(
-            net,
-            # checkpoint_path=checkpoint_path
-        )
-        net.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(1)), strict=False)
-        net.train()
-        # configure to use GPU
-        torch.cuda.set_device(1)
+        if checkpoint_path:
+            net, start_epoch = train_args.resume_train(
+                net,
+                checkpoint_path=checkpoint_path
+            )
+            net.load_state_dict(
+                torch.load(checkpoint_path, map_location=torch.device(1)), strict=False
+            )
+        else:
+            net, start_epoch = train_args.resume_train(
+                net,
+            )
+
+        # TODO: make GPU vs CPU configurable in CLI
+        net.train()  # enable model trainability
+        torch.cuda.set_device(1)  # configure to use GPU
         net.cuda()
 
+        # TODO: make configurable in CLI
+        # TODO: simplify
         # prepare dataset for training and validation
         train_set, val_set = train_args.get_dataset()
-        train_loader = DataLoader(dataset=train_set, batch_size=train_args.train_batch, num_workers=0, shuffle=True)
-        val_loader = DataLoader(dataset=val_set, batch_size=train_args.val_batch, num_workers=0)
+        train_loader = DataLoader(
+            dataset=train_set,
+            batch_size=train_args.train_batch,
+            num_workers=0,
+            shuffle=True,
+        )
+        val_loader = DataLoader(
+            dataset=val_set, batch_size=train_args.val_batch, num_workers=0
+        )
 
+        # TODO: make GPU vs CPU configurable in CLI
         criterion = ACWLoss().cuda()
 
         params = init_params_lr(net, train_args)
@@ -181,13 +209,17 @@ def train_rx50():
         optimizer = Lookahead(base_optimizer, k=6)
         # optimizer = AdaX(params)
 
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, 60, 1.18e-6
+        )
 
         # loop for the specific epochs for training
         new_ep = 12
         print(checkpoint_path is not None and new_ep > 0)
         if checkpoint_path is not None and new_ep > 0:
-            logging.debug(f"Resuming using model at: {str(checkpoint_path)}\nstarting at epoch: {new_ep}")
+            logging.debug(
+                f"Resuming using model at: {str(checkpoint_path)}\nstarting at epoch: {new_ep}"
+            )
 
         EPOCHS = 40
         while True:
@@ -197,11 +229,19 @@ def train_rx50():
             cls_train_loss = AverageMeter()
 
             start_lr = train_args.lr
-            train_args.lr = optimizer.param_groups[0]['lr']
+            train_args.lr = optimizer.param_groups[0]["lr"]
             num_iter = len(train_loader)
             curr_iter = ((start_epoch + new_ep) - 1) * num_iter
-            print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
-            logging.debug('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
+            print(
+                "---curr_iter: {}, num_iter per epoch: {}---".format(
+                    curr_iter, num_iter
+                )
+            )
+            logging.debug(
+                "---curr_iter: {}, num_iter per epoch: {}---".format(
+                    curr_iter, num_iter
+                )
+            )
 
             if new_ep % 5 == 0:
                 train_args.save_pred = True
@@ -211,7 +251,11 @@ def train_rx50():
             for i, (inputs, labels) in enumerate(train_loader):
                 sys.stdout.flush()
 
-                inputs, labels = inputs.cuda(), labels.cuda(),
+                # TODO: make GPU vs CPU configurable in CLI
+                inputs, labels = (
+                    inputs.cuda(),
+                    labels.cuda(),
+                )
                 N = inputs.size(0) * inputs.size(2) * inputs.size(3)
                 # print(inputs.shape) # DEBUG TODO: check for recreating in notebook for MVP desktop deployment
                 optimizer.zero_grad()
@@ -228,28 +272,52 @@ def train_rx50():
                 aux_train_loss.update(cost.item(), inputs.size(0))
 
                 curr_iter += 1
-                writer.add_scalar('main_loss', train_main_loss.avg, curr_iter)
-                writer.add_scalar('aux_loss', aux_train_loss.avg, curr_iter)
+                writer.add_scalar("main_loss", train_main_loss.avg, curr_iter)
+                writer.add_scalar("aux_loss", aux_train_loss.avg, curr_iter)
                 # writer.add_scalar('cls_loss', cls_trian_loss.avg, curr_iter)
-                writer.add_scalar('lr', optimizer.param_groups[0]['lr'], curr_iter)
+                writer.add_scalar("lr", optimizer.param_groups[0]["lr"], curr_iter)
 
                 if (i + 1) % train_args.print_freq == 0:
                     new_time = time.time()
 
-                    print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
-                          (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
-                           cls_train_loss.avg,
-                           optimizer.param_groups[0]['lr'], new_time - start_time))
+                    print(
+                        "[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]"
+                        % (
+                            start_epoch + new_ep,
+                            i + 1,
+                            num_iter,
+                            train_main_loss.avg,
+                            aux_train_loss.avg,
+                            cls_train_loss.avg,
+                            optimizer.param_groups[0]["lr"],
+                            new_time - start_time,
+                        )
+                    )
                     logging.debug(
-                        '[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
-                        (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
-                         cls_train_loss.avg,
-                         optimizer.param_groups[0]['lr'], new_time - start_time))
+                        "[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]"
+                        % (
+                            start_epoch + new_ep,
+                            i + 1,
+                            num_iter,
+                            train_main_loss.avg,
+                            aux_train_loss.avg,
+                            cls_train_loss.avg,
+                            optimizer.param_groups[0]["lr"],
+                            new_time - start_time,
+                        )
+                    )
 
                     start_time = new_time
 
-            validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep,
-                     new_ep)  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
+            validate(
+                net,
+                val_set,
+                val_loader,
+                criterion,
+                optimizer,
+                start_epoch + new_ep,
+                new_ep,
+            )  # TODO: moved into the for-loop body to assess potneital origin of mem leak issue
             new_ep += 1
             if new_ep > EPOCHS:
                 logging.debug("Completed training for: {} epochs".format(EPOCHS))
@@ -288,6 +356,8 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             # val_set.winsize = np.array([train_args.input_size[0] * newsize,
             #                             train_args.input_size[1] * newsize],
             #                            dtype='int32')
+
+            # TODO: make GPU vs CPU configurable in CLI
             inputs, gts = inputs.cuda(), gts.cuda()
             N = inputs.size(0) * inputs.size(2) * inputs.size(3)
             outputs = net(inputs)
@@ -311,16 +381,25 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
             # logging.debug(sys.getsizeof(inputs_all))
             # logging.debug(sys.getsizeof(predictions_all))
     end_time = time.time()
-    logging.debug(f"aggregation time: {end_time - start_time} s ({(end_time - start_time) / 60} min)")
-    update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
-                      inputs_all, gts_all, predictions_all)
+    logging.debug(
+        f"aggregation time: {end_time - start_time} s ({(end_time - start_time) / 60} min)"
+    )
+    update_checkpoint(
+        net, optimizer, epoch, new_ep, val_loss, inputs_all, gts_all, predictions_all
+    )
 
     net.train()  #
-    return val_loss, inputs_all, gts_all, predictions_all  # TODO: is this necessary in the following function? is there another func dpcy
+    return (
+        val_loss,
+        inputs_all,
+        gts_all,
+        predictions_all,
+    )  # TODO: is this necessary in the following function? is there another func dpcy
 
 
-def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
-                      inputs_all, gts_all, predictions_all):
+def update_checkpoint(
+        net, optimizer, epoch, new_ep, val_loss, inputs_all, gts_all, predictions_all
+):
     """TODO: needs refactor to find the acc, acc_clr, mean_iu, fwavacc, f1 on a single instance instead of on the collection which is
     RAM intensive
 
@@ -337,40 +416,66 @@ def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
     logging.debug("Updating tensorboard")
     avg_loss = val_loss.avg
 
-    acc, acc_cls, mean_iu, fwavacc, f1 = evaluate(predictions_all, gts_all, train_args.nb_classes)
+    acc, acc_cls, mean_iu, fwavacc, f1 = evaluate(
+        predictions_all, gts_all, train_args.nb_classes
+    )
 
-    writer.add_scalar('val_loss', avg_loss, epoch)
-    writer.add_scalar('acc', acc, epoch)
-    writer.add_scalar('acc_cls', acc_cls, epoch)
-    writer.add_scalar('mean_iu', mean_iu, epoch)
-    writer.add_scalar('fwavacc', fwavacc, epoch)
-    writer.add_scalar('f1_score', f1, epoch)
+    writer.add_scalar("val_loss", avg_loss, epoch)
+    writer.add_scalar("acc", acc, epoch)
+    writer.add_scalar("acc_cls", acc_cls, epoch)
+    writer.add_scalar("mean_iu", mean_iu, epoch)
+    writer.add_scalar("fwavacc", fwavacc, epoch)
+    writer.add_scalar("f1_score", f1, epoch)
 
-    updated = train_args.update_best_record(epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1)
+    updated = train_args.update_best_record(
+        epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1
+    )
 
     # save best record and snapshot parameters
     val_visual = []
 
-    snapshot_name = train_args.model_name + "-" + 'epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_' \
-                                                  '%.5f_f1_%.5f_lr_%.10f' % (
-                        epoch, avg_loss, acc, acc_cls, mean_iu, fwavacc, f1, optimizer.param_groups[0]['lr']
-                    )
+    snapshot_name = (
+            train_args.model_name
+            + "-"
+            + "epoch_%d_loss_%.5f_acc_%.5f_acc-cls_%.5f_mean-iu_%.5f_fwavacc_"
+              "%.5f_f1_%.5f_lr_%.10f"
+            % (
+                epoch,
+                avg_loss,
+                acc,
+                acc_cls,
+                mean_iu,
+                fwavacc,
+                f1,
+                optimizer.param_groups[0]["lr"],
+            )
+    )
 
-    logging.debug("checkpointing metrics at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
-    torch.save(net.state_dict(),
-               os.path.join(train_args.save_path, snapshot_name + '.pth'))
+    logging.debug(
+        "checkpointing metrics at:",
+        os.path.join(train_args.save_path, snapshot_name + ".pth"),
+    )
+    torch.save(
+        net.state_dict(), os.path.join(train_args.save_path, snapshot_name + ".pth")
+    )
 
-    if updated or (train_args.best_record['val_loss'] > avg_loss):
-        logging.debug("checkpointing metrics at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
-        torch.save(net.state_dict(),
-                   os.path.join(train_args.save_path, snapshot_name + '.pth'))
+    if updated or (train_args.best_record["val_loss"] > avg_loss):
+        logging.debug(
+            "checkpointing metrics at:",
+            os.path.join(train_args.save_path, snapshot_name + ".pth"),
+        )
+        torch.save(
+            net.state_dict(), os.path.join(train_args.save_path, snapshot_name + ".pth")
+        )
 
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
 
     # frequency of predictions saving
     if train_args.save_pred:
         if updated or (new_ep % 5 == 0):
-            val_visual = visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all)
+            val_visual = visual_checkpoint(
+                epoch, new_ep, inputs_all, gts_all, predictions_all
+            )
 
     if len(val_visual) > 0:
         val_visual = torch.stack(val_visual, 0)
@@ -381,7 +486,7 @@ def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
 def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
     val_visual = []
     if train_args.save_pred:
-        to_save_dir = os.path.join(train_args.save_path, str(epoch) + '_' + str(new_ep))
+        to_save_dir = os.path.join(train_args.save_path, str(epoch) + "_" + str(new_ep))
         logging.debug("creating save directory at: {}".format(to_save_dir))
         check_mkdir(to_save_dir)
 
@@ -401,13 +506,22 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
 
         # if train_args['val_save_to_img_file']:
         if train_args.save_pred:
-            logging.debug("Saving predictions, input, and ground-truths in: {}".format(to_save_dir))
-            input_pil.save(os.path.join(to_save_dir, '%d_input.png' % idx))
-            predictions_pil.save(os.path.join(to_save_dir, '%d_prediction.png' % idx))
-            gt_pil.save(os.path.join(to_save_dir, '%d_gt.png' % idx))
+            logging.debug(
+                "Saving predictions, input, and ground-truths in: {}".format(
+                    to_save_dir
+                )
+            )
+            input_pil.save(os.path.join(to_save_dir, "%d_input.png" % idx))
+            predictions_pil.save(os.path.join(to_save_dir, "%d_prediction.png" % idx))
+            gt_pil.save(os.path.join(to_save_dir, "%d_gt.png" % idx))
 
-        val_visual.extend([visualize(input_pil.convert('RGB')), visualize(gt_pil.convert('RGB')),
-                           visualize(predictions_pil.convert('RGB'))])
+        val_visual.extend(
+            [
+                visualize(input_pil.convert("RGB")),
+                visualize(gt_pil.convert("RGB")),
+                visualize(predictions_pil.convert("RGB")),
+            ]
+        )
     return val_visual
 
 
@@ -416,5 +530,5 @@ def check_mkdir(dir_name):
         os.mkdir(dir_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     train_rx50()

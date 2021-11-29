@@ -10,7 +10,6 @@
   - [Dataset Preparation](#dataset-preparation)
   - [How to Train](#how-to-train)
 - [API Documentation](#api-documentation)
-
 <!-- /TOC -->
 
 
@@ -140,7 +139,7 @@ CUDA_VISIBLE_DEVICES=0 python ./tools/test_submission.py
 ```
 
 #### Trained weights for  3 models download (save them to ./checkpoint before run test_submission)
-[checkpoint1](https://drive.google.com/open?id=1eVvUd4TVUtEe_aUgKamUrDdSlrIGHuH3),[checkpoint2](https://drive.google.com/open?id=1vOlS4LfHGnWIUpqTFB2a07ndlpBxFmVE),[checkpoint3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
+[checkpoint1](https://drive.google.com/open?id=1eVvUd4TVUtEe_aUgKamUrDdSlrIGHuH3), [checkpoint2](https://drive.google.com/open?id=1vOlS4LfHGnWIUpqTFB2a07ndlpBxFmVE), [checkpoint3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
 
 ## Results Summary
 
