@@ -32,7 +32,7 @@ def get_available_gpus(memory_threshold: float = 0.0, metric: str = "mb") -> Lis
 
     :param memory_threshold: maximum memory usage threshold to reject
     :param metric: GB or MB
-    :return:
+    :return: List
     """
     m = metric.upper()
     assert m in ["GB", "MB"]

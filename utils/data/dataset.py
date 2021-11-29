@@ -1,10 +1,14 @@
-from utils.data.augmentations import *
+import os
 
+import cv2
+import numpy as np
 import torch
+from albumentations import Compose, VerticalFlip, RandomRotate90, HorizontalFlip
 from torch.utils.data import Dataset
 import torchvision.transforms as standard_transforms
 
-from utils.data.preprocess import *
+from utils.data.augmentations import img_load, img_mask_crop
+from utils.data.preprocess import IMG, GT
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -30,7 +34,7 @@ class AgricultureDataset(Dataset):
         self.scale = scale
         self.all_ids = file_lists['all_files']
         self.image_files = file_lists[IMG]  # image_files = [[bands1, bands2,..], ...]
-        self.mask_files = file_lists[GT]    # mask_files = [gt1, gt2, ...]
+        self.mask_files = file_lists[GT]  # mask_files = [gt1, gt2, ...]
 
     def __len__(self):
         return len(self.all_ids)
@@ -114,3 +118,69 @@ class AgricultureDataset(Dataset):
         norm = standard_transforms.Compose([standard_transforms.Normalize(*mean_std)])
         return norm(img)
 
+
+class AgricultureDataset2021(AgricultureDataset):
+    def __init__(self):
+        super.__init__()
+        palette_land = {
+            0: (0, 0, 0),  # TODO: unsure if relabel is necessary leaving as `background`
+            1: (255, 255, 0),  # TODO: UPDATED [1] to `water` from `cloud_shadow`
+            2: (255, 0, 255),  # double_plant
+            3: (0, 255, 0),  # planter_skip
+            4: (0, 0, 255),  # TODO: UPDATED [2] to `drydown` from `standing_water`
+            5: (255, 255, 255),  # waterway
+            6: (0, 255, 255),  # weed_cluster
+            7: (0, 128, 255),  # TODO: UPDATED [3] to `endrow` from `cloud_shadow`
+            8: (128, 0, 128),  # TODO: UPDATED [4] to `nutrient_deficiency` from `cloud_shadow`
+            9: (255, 0, 0),  # TODO: UPDATED [5] to `storm_damage` from `cloud_shadow`
+        }
+
+        # customised palette for visualization, easier for reading in paper
+        palette_vsl = {
+            0: (0, 0, 0),  # TODO:  not sure whether to update or not `background`, labels reflected only 6 / 7
+            1: (0, 255, 0),  # UPDATED [1] to `water`
+            2: (255, 0, 0),  # double_plant
+            3: (0, 200, 200),  # planter_skip
+            4: (255, 255, 255),  # UPDATED [2] to `drydown`
+            5: (128, 128, 0),  # waterway
+            6: (0, 0, 255),  # weed_cluster
+            7: (0, 128, 255),  # UPDATED [3] to `endrow`
+            8: (128, 0, 128),  # UPDATED [4] to `nutrient_deficiency`
+            9: (128, 255, 128),  # UPDATED [5] to `storm_damage`
+        }
+
+        labels_folder = {
+            'water': 1,  # TODO: UPDATED [1] to `water` from `cloud_shadow`
+            'double_plant': 2,
+            'planter_skip': 3,
+            'drydown': 4,  # TODO: UPDATED [2] to `drydown` from `standing_water`
+            'waterway': 5,
+            'weed_cluster': 6,
+            'endrow': 7,
+            'nutrient_deficiency': 8,
+            'storm_damage': 9
+        }
+
+        # TODO: likely needs to be updated to reflect the new 9 classes -- include background...?
+        # OLD
+        # land_classes = ["background", "cloud_shadow", "double_plant", "planter_skip",
+        #                 "standing_water", "waterway", "weed_cluster"]
+
+        # UPDATED labels: only 6 classes
+        land_classes = ["background", "water", "double_plant", "planter_skip",
+                        "drydown", "waterway", "weed_cluster",
+                        "endrow", "nutrient_deficiency", "storm_damage"
+                        ]
+        Data_Folder = {
+            'Agriculture': {
+                'ROOT': DATASET_ROOT,
+                'RGB': 'images/rgb/{}.jpg',
+                'NIR': 'images/nir/{}.jpg',
+                'SHAPE': (512, 512),
+                'GT': 'gt/{}.png',
+            },
+        }
+
+        IMG = 'images'  # RGB or IRRG, rgb/nir
+        GT = 'gt'
+        IDS = 'IDs'

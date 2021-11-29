@@ -3,20 +3,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split, KFold
 
 import cv2
-
 # change DATASET ROOT to your dataset path
-DATASET_ROOT = '/home/hanz/github/mscg-agriculture-dataset/2021/supervised/Agriculture-Vision-2021'
-
+DATASET_ROOT = '/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021'
 
 TRAIN_ROOT = os.path.join(DATASET_ROOT, 'train')
 VAL_ROOT = os.path.join(DATASET_ROOT, 'val')
 TEST_ROOT = os.path.join(DATASET_ROOT, 'test/images')
-
 
 """
 In the loaded numpy array, only 0-6 integer labels are allowed, and they represent the annotations in the following way:
@@ -89,7 +87,7 @@ Data_Folder = {
     },
 }
 
-IMG = 'images' # RGB or IRRG, rgb/nir
+IMG = 'images'  # RGB or IRRG, rgb/nir
 GT = 'gt'
 IDS = 'IDs'
 
@@ -104,52 +102,112 @@ def img_basename(filename):
 
 
 def is_image(filename):
-    return any(filename.endswith(ext) for ext in ['.png','.jpg'])
+    return any(filename.endswith(ext) for ext in ['.png', '.jpg'])
 
 
-def prepare_gt(root_folder = TRAIN_ROOT, out_path='gt'):
+def prepare_gt(root_folder=TRAIN_ROOT, out_path='gt'):
+    """Function for creating ground-truths from a specified directory
+
+
+    .. code-block:: text
+
+        # pre-process
+        Agriculture-Vision
+        |-- train
+        |   |-- masks
+        |   |-- labels
+        |   |-- boundaries
+        |   |-- images
+        |   |   |-- nir
+        |   |   |-- rgb
+        |-- val
+        |   |-- masks
+        |   |-- labels
+        |   |-- boundaries
+        |   |-- images
+        |   |   |-- nir
+        |   |   |-- rgb
+        |-- test
+        |   |-- boundaries
+        |   |-- images
+        |   |   |-- nir
+        |   |   |-- rgb
+        |   |-- masks
+        .
+        .
+        .
+
+    :param root_folder:
+    :param out_path:
+    :return:
+    """
     if not os.path.exists(os.path.join(root_folder, out_path)):
         print('----------creating groundtruth data for training./.val---------------')
         check_mkdir(os.path.join(root_folder, out_path))
-        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder,'images/rgb'))]
-        gt = basname[0]+'.png'
+        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/rgb'))]
+        gt = basname[0] + '.png'
+        # this is something that could be multiprocessed
         for fname in basname:
             gtz = np.zeros((512, 512), dtype=int)
             for key in labels_folder.keys():
                 gt = fname + '.png'
-                mask = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, gt), -1)/255, dtype=int) * labels_folder[key]
+                mask = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, gt), -1) / 255, dtype=int) * \
+                       labels_folder[key]
                 gtz[gtz < 1] = mask[gtz < 1]
 
             for key in ['boundaries', 'masks']:
                 mask = np.array(cv2.imread(os.path.join(root_folder, key, gt), -1) / 255, dtype=int)
                 gtz[mask == 0] = 255
-
+            logging.debug("writing to... {}".format(os.path.join(root_folder, out_path, gt)))
             cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def get_training_list(root_folder = TRAIN_ROOT, count_label=True):
+def reset_gt(root_folder=TRAIN_ROOT, out_path='gt'):
+    if not os.path.exists(os.path.join(root_folder, out_path)):
+        print('----------deleting groundtruth data for training./.val---------------')
+        # check_mkdir(os.path.join(root_folder, out_path))
+        basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/rgb'))]
+        gt = basname[0] + '.png'
+        # this is something that could be multiprocessed
+        # for fname in basname:
+        #     gtz = np.zeros((512, 512), dtype=int)
+        #     for key in labels_folder.keys():
+        #         gt = fname + '.png'
+        #         mask = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, gt), -1) / 255, dtype=int) * \
+        #                labels_folder[key]
+        #         gtz[gtz < 1] = mask[gtz < 1]
+        #
+        #     for key in ['boundaries', 'masks']:
+        #         mask = np.array(cv2.imread(os.path.join(root_folder, key, gt), -1) / 255, dtype=int)
+        #         gtz[mask == 0] = 255
+        #     logging.debug("writing to... {}".format(os.path.join(root_folder, out_path, gt)))
+        os.remove(os.path.join(root_folder, out_path, gt))
+        # cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
+
+
+def get_training_list(root_folder=TRAIN_ROOT, count_label=True):
     dict_list = {}
     basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'images/nir'))]
     if count_label:
         for key in labels_folder.keys():
-            no_zero_files=[]
+            no_zero_files = []
             for fname in basname:
-                gt = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, fname+'.png'), -1))
+                gt = np.array(cv2.imread(os.path.join(root_folder, 'labels', key, fname + '.png'), -1))
                 if np.count_nonzero(gt):
                     no_zero_files.append(fname)
                 else:
                     continue
             dict_list[key] = no_zero_files
     return dict_list, basname
-        # print(len(list[key]), list[key][0:5])
+    # print(len(list[key]), list[key][0:5])
 
 
-def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR','RGB'], KF=3, k=1, seeds=69278):
-
+def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands=['NIR', 'RGB'], KF=3, k=1,
+                              seeds=69278):
     train_id, t_list = get_training_list(root_folder=TRAIN_ROOT, count_label=False)
     val_id, v_list = get_training_list(root_folder=VAL_ROOT, count_label=False)
 
-    if KF >=2:
+    if KF >= 2:
         kf = KFold(n_splits=KF, shuffle=True, random_state=seeds)
         val_ids = np.array(v_list)
         idx = list(kf.split(np.array(val_ids)))
@@ -157,7 +215,7 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
             k = 0
         t2_list, v_list = list(val_ids[idx[k][0]]), list(val_ids[idx[k][1]])
     else:
-        t2_list=[]
+        t2_list = []
 
     img_folders = [os.path.join(data_folder[name]['ROOT'], 'train', data_folder[name][band]) for band in bands]
     gt_folder = os.path.join(data_folder[name]['ROOT'], 'train', data_folder[name]['GT'])
@@ -191,7 +249,7 @@ def split_train_val_test_sets(data_folder=Data_Folder, name='Agriculture', bands
     return train_dict, val_dict, test_dict
 
 
-def get_real_test_list(root_folder = TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']):
+def get_real_test_list(root_folder=TEST_ROOT, data_folder=Data_Folder, name='Agriculture', bands=['RGB']):
     dict_list = {}
     basname = [img_basename(f) for f in os.listdir(os.path.join(root_folder, 'nir'))]
     dict_list['all'] = basname

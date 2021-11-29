@@ -1,16 +1,24 @@
 from __future__ import division
 
-from visual import *
+import os
+
+import cv2
+import numpy as np
+import torch
 
 import torchvision.transforms as st
 from sklearn.metrics import confusion_matrix
 from tqdm import tqdm_notebook as tqdm
 
-from checkpoint import *
 import time
 import itertools
 
-output_path = os.path.join('../submission', 'results_checkpoint1_checkpoint2_tta')
+from utils.data.augmentations import scale
+from utils.data.preprocess import land_classes, IDS, get_real_test_list
+from utils.data.visual import mean_std
+from utils.trace.checkpoint import get_net, checkpoint1, checkpoint2, load_test_img, load_ids
+
+output_path = os.path.join('../../submission', 'results_checkpoint1_checkpoint2_tta')
 
 
 def main():
@@ -35,7 +43,7 @@ def main():
 
 
 def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512, 512)):
-    """
+    """Ensemble method combining Rx50 and Rx101 for image segmentation inference
 
     :param nets:
     :param image:
@@ -67,8 +75,8 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512
             image_patches = torch.from_numpy(image_patches).cuda()
 
             for net in nets:
-                outs = net(image_patches)  # + Fn.torch_rot270(models(Fn.torch_rot90(image_patches)))
-                # outs = models(image_patches)
+                outs = net(image_patches)  # + Fn.torch_rot270(core(Fn.torch_rot90(image_patches)))
+                # outs = core(image_patches)
                 outs = outs.data.cpu().numpy()
 
                 b, _, _, _ = outs.shape

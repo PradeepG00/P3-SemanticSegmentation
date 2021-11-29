@@ -54,8 +54,8 @@ def img_mask_crop(image, mask, size=(256, 256), limits=(224, 512)):
 
 def img_mask_pad(image, mask, target=(288, 288)):
     padding = PadIfNeeded(p=1.0, min_height=target[0], min_width=target[1])
-    paded = padding(image=image, mask=mask)
-    return paded['image'], paded['mask']
+    padded = padding(image=image, mask=mask)
+    return padded['image'], padded['mask']
 
 
 def composed_augmentation(image, mask):
@@ -135,7 +135,7 @@ def pad_tensor(image_tensor: Tensor, pad_size: int = 32):
 
     :param image_tensor: Input tensor of shape NCHW
     :param pad_size: Pad size
-    :return: Tuple of output tensor and pad params. Second argument can be used to reverse pad operation of model output
+    :return: Tuple of output tensor and pad params. Second argument can be used to reverse pad operation of metrics output
     """
     rows, cols = image_tensor.size(2), image_tensor.size(3)
 

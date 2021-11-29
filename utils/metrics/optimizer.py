@@ -135,7 +135,7 @@ class Lookahead(Optimizer):
 #     def step(self, closure=None):
 #         """Performs a single optimization step.
 #         Arguments:
-#             closure (callable, optional): A closure that reevaluates the model
+#             closure (callable, optional): A closure that reevaluates the metrics
 #                 and returns the loss.
 #         """
 #         loss = None
@@ -225,7 +225,7 @@ class Lookahead(Optimizer):
 #     def step(self, closure=None):
 #         """Performs a single optimization step.
 #         Arguments:
-#             closure (callable, optional): A closure that reevaluates the model
+#             closure (callable, optional): A closure that reevaluates the metrics
 #                 and returns the loss.
 #         """
 #         loss = None

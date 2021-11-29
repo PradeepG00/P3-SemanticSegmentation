@@ -1,12 +1,19 @@
 import datetime
+import os
+
+import numpy as np
+import torch
 import yaml
-from utils.data.dataset import *
 from pathlib import Path
+
+from utils.data.dataset import AgricultureDataset
+from utils.data.preprocess import land_classes, palette_vsl, split_train_val_test_sets
 
 
 class AgricultureConfiguration(object):
     root_path = Path("/home/hanz/github/P3-SemanticSegmentation")
     model_name = 'none'
+    optimizer = "adam"
     # data set parameters
     dataset = 'Agriculture'
     bands = ['NIR', 'RGB']
@@ -42,7 +49,7 @@ class AgricultureConfiguration(object):
     momentum = 0.9
 
     # check point parameters
-    checkpoint_path = root_path / "checkpoints"
+    checkpoint_path = root_path / "checkpoints" / optimizer
     snapshot = ''
     print_freq = 100
     # print_freq = 5
@@ -50,8 +57,9 @@ class AgricultureConfiguration(object):
     save_rate = 0.1
     best_record = {}
 
-    def __init__(self, net_name=model_name, data=dataset, bands_list=bands, kf=1, k_folder=5, note='', optimizer="adam"):
-        """
+    def __init__(self, net_name=model_name, data=dataset, bands_list=bands, kf=1, k_folder=5, note='',
+                 optimizer="adam"):
+        """Class handling training configuration and tensorboard operations
 
         :param net_name:
         :param data:
@@ -95,23 +103,28 @@ class AgricultureConfiguration(object):
                               num_samples=self.val_samples, win_size=self.val_size, scale=self.scale_rate)
         return train_set, val_set
 
-    def resume_train(self, net, checkpoint_path: str):
-        """Function for loading in a model for resuming training
-
+    def resume_train(self, net, checkpoint_path: str = None, use_gpu: bool=True):
+        """Function for loading in a metrics for resuming training
+z
         :param net:
         :param checkpoint_path:
         :return:
         """
+        # check if path exists
         if checkpoint_path:
-            print("Loading model from checkpoint:", checkpoint_path)
-            net.load_state_dict(torch.load(checkpoint_path))
+            print("Loading metrics from checkpoint:", checkpoint_path)
+            if use_gpu:
+                net.load_state_dict(torch.load(checkpoint_path,map_location=torch.device(0)), strict=False)
+            else:
+                net.load_state_dict(torch.load(checkpoint_path,map_location=torch.device('cpu')), strict=False)
+
         if len(self.snapshot) == 0:
             curr_epoch = 1
             self.best_record = {'epoch': 0, 'val_loss': 0, 'acc': 0, 'acc_cls': 0, 'mean_iu': 0, 'fwavacc': 0,
                                 'f1': 0}
         else:
             print('training resumes from ' + self.snapshot)
-            # models.load_state_dict(torch.load(self.snapshot))
+            # core.load_state_dict(torch.load(self.snapshot))
             net.load_state_dict(torch.load(os.path.join(self.save_path, self.snapshot)))
             split_snapshot = self.snapshot.split('_')
             curr_epoch = int(split_snapshot[1]) + 1
