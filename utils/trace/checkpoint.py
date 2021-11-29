@@ -13,35 +13,32 @@ from utils.data.augmentations import img_load
 from utils.data.preprocess import IDS, GT, IMG
 
 checkpoint1 = {
-    'core': 'MSCG-Rx50',
-    'data': 'Agriculture',
-    'bands': ['NIR', 'RGB'],
-    'num_classes': 10,
-
-    'nodes': (32, 32),
-    'snapshot': '../checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_6_loss_1.09903_acc_0.77739_acc-cls_0.53071_mean-iu_0.39789_fwavacc_0.64861_f1_0.53678_lr_0.0000845121.pth'
+    "core": "MSCG-Rx50",
+    "data": "Agriculture",
+    "bands": ["NIR", "RGB"],
+    "num_classes": 10,
+    "nodes": (32, 32),
+    "snapshot": "../checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_6_loss_1.09903_acc_0.77739_acc-cls_0.53071_mean-iu_0.39789_fwavacc_0.64861_f1_0.53678_lr_0.0000845121.pth",
 }
 
 # score 0.550 , no TTA
 checkpoint2 = {
-    'core': 'MSCG-Rx101',
-    'data': 'Agriculture',
-    'bands': ['NIR', 'RGB'],
-    'num_classes': 10,
-
-    'nodes': (32, 32),
-    'snapshot': '..checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_4_loss_1.26896_acc_0.77713_acc-cls_0.54260_mean-iu_0.40996_fwavacc_0.64399_f1_0.55334_lr_0.0001245001.pth'
-
+    "core": "MSCG-Rx101",
+    "data": "Agriculture",
+    "bands": ["NIR", "RGB"],
+    "num_classes": 10,
+    "nodes": (32, 32),
+    "snapshot": "..checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_4_loss_1.26896_acc_0.77713_acc-cls_0.54260_mean-iu_0.40996_fwavacc_0.64399_f1_0.55334_lr_0.0001245001.pth",
 }
 
 checkpoint3 = {
-    'core': 'MSCG-Rx101',
-    'data': 'Agriculture',
-    'bands': ['NIR', 'RGB'],
-    'num_classes': 10,
-    'nodes': (32, 32),
-    'snapshot': '../checkpoints/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_'
-                'mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth'
+    "core": "MSCG-Rx101",
+    "data": "Agriculture",
+    "bands": ["NIR", "RGB"],
+    "num_classes": 10,
+    "nodes": (32, 32),
+    "snapshot": "../checkpoints/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_"
+    "mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth",
 }
 
 
@@ -55,11 +52,13 @@ def get_net(checkpoint=checkpoint1):
     :param checkpoint: Dictionary containing model meta-data for loading from a .pth
     :return:
     """
-    net = get_model(name=checkpoint['core'],
-                    classes=checkpoint['num_classes'],
-                    node_size=checkpoint['nodes'])
+    net = get_model(
+        name=checkpoint["core"],
+        classes=checkpoint["num_classes"],
+        node_size=checkpoint["nodes"],
+    )
 
-    net.load_state_dict(torch.load(checkpoint['snapshot']))
+    net.load_state_dict(torch.load(checkpoint["snapshot"]))
     net.cuda()
     net.eval()
     return net
@@ -83,9 +82,9 @@ def load_test_img(test_files):
                 for i in range(len(image_files)):
                     filename = image_files[i].format(id)
                     path, _ = os.path.split(filename)
-                    if path[-3:] == 'nir':
+                    if path[-3:] == "nir":
                         # img = imload(filename, gray=True)
-                        img = np.asarray(Image.open(filename), dtype='uint8')
+                        img = np.asarray(Image.open(filename), dtype="uint8")
                         img = np.expand_dims(img, 2)
 
                         imgs.append(img)
@@ -96,9 +95,9 @@ def load_test_img(test_files):
             else:
                 filename = image_files[0].format(id)
                 path, _ = os.path.split(filename)
-                if path[-3:] == 'nir':
+                if path[-3:] == "nir":
                     # image = imload(filename, gray=True)
-                    image = np.asarray(Image.open(filename), dtype='uint8')
+                    image = np.asarray(Image.open(filename), dtype="uint8")
                     image = np.expand_dims(image, 2)
                 else:
                     image = img_load(filename)
@@ -131,5 +130,5 @@ def load_gt(test_files):
     mask_files = test_files[GT]
     for key in id_dict.keys():
         for id in id_dict[key]:
-            label = np.asarray(Image.open(mask_files.format(id)), dtype='uint8')
+            label = np.asarray(Image.open(mask_files.format(id)), dtype="uint8")
             yield label

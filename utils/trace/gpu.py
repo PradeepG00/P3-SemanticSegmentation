@@ -16,14 +16,16 @@ def get_gpu_memory_map() -> dict:
         Values are memory usage as integers in MB.
     """
     result = subprocess.check_output(
-        [
-            'nvidia-smi', '--query-gpu=memory.used',
-            '--format=csv,nounits,noheader'
-        ], encoding='utf-8')
+        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,nounits,noheader"],
+        encoding="utf-8",
+    )
     # Convert lines into a dictionary
-    gpu_memory = [int(x) for x in result.strip().split('\n')]
+    gpu_memory = [int(x) for x in result.strip().split("\n")]
 
-    gpu_memory_map = {id: {"MB": gpu_memory[id], "GB": gpu_memory[id] / 1000} for id in range(len(gpu_memory))}
+    gpu_memory_map = {
+        id: {"MB": gpu_memory[id], "GB": gpu_memory[id] / 1000}
+        for id in range(len(gpu_memory))
+    }
     return gpu_memory_map
 
 
@@ -53,19 +55,13 @@ def get_gpu_stats() -> pandas.DataFrame:
 
     :return:
     """
-    gpu_dict = {
-        "id": [],
-        "total": [],
-        "reserve": [],
-        "usage": [],
-        "free": []
-    }
+    gpu_dict = {"id": [], "total": [], "reserve": [], "usage": [], "free": []}
     for i in range(9):
         try:
             print(torch.cuda.memory_stats(i))
             t = torch.cuda.get_device_properties(i).total_memory
-            r = torch.cuda.memory_reserved(i) / 1024*3
-            a = torch.cuda.memory_allocated(i) / 1024*3
+            r = torch.cuda.memory_reserved(i) / 1024 * 3
+            a = torch.cuda.memory_allocated(i) / 1024 * 3
             f = r - a  # free inside reserved
             gpu_dict["id"].append(i)
             gpu_dict["reserve"].append(r)
@@ -76,6 +72,7 @@ def get_gpu_stats() -> pandas.DataFrame:
         except Exception as e:
             pass
     import pandas as pd
+
     return pd.DataFrame(gpu_dict)
 
 
@@ -88,4 +85,4 @@ if __name__ == "__main__":
     print(gpu_mem_usage)
     print(get_available_gpus(10000, "mb"))
     print(get_gpu_stats())
-    print(torch.cuda.device_count()) # returns 1 in my case
+    print(torch.cuda.device_count())  # returns 1 in my case

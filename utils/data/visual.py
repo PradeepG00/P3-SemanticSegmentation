@@ -17,21 +17,20 @@ class DeNormalize(object):
 
 
 def get_visualize(args):
-    visualize = standard_transforms.Compose([
-        standard_transforms.Resize(300),
-        standard_transforms.CenterCrop(300),
-        standard_transforms.ToTensor()
-    ])
+    visualize = standard_transforms.Compose(
+        [
+            standard_transforms.Resize(300),
+            standard_transforms.CenterCrop(300),
+            standard_transforms.ToTensor(),
+        ]
+    )
 
     if args.pre_norm:
-        restore = standard_transforms.Compose([
-            DeNormalize(*mean_std),
-            standard_transforms.ToPILImage(),
-        ])
+        restore = standard_transforms.Compose(
+            [DeNormalize(*mean_std), standard_transforms.ToPILImage(),]
+        )
     else:
-        restore = standard_transforms.Compose([
-            standard_transforms.ToPILImage(),
-        ])
+        restore = standard_transforms.Compose([standard_transforms.ToPILImage(),])
 
     return visualize, restore
 
@@ -49,7 +48,7 @@ def setup_palette(palette):
 
 
 def colorize_mask(mask, palette):
-    new_mask = Image.fromarray(mask.astype(np.uint8)).convert('P')
+    new_mask = Image.fromarray(mask.astype(np.uint8)).convert("P")
     new_mask.putpalette(setup_palette(palette))
     return new_mask
 

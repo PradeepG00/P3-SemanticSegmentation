@@ -71,7 +71,7 @@ class ACWLoss(nn.Module):
         :param err:
         :return:
         """
-        return err - ((1. - err + self.eps) / (1. + err + self.eps)).log()
+        return err - ((1.0 - err + self.eps) / (1.0 + err + self.eps)).log()
 
     def adaptive_class_weight(self, pred, one_hot_label, mask=None):
         """Adaptive Class Weighting (ACW) computed based on the iterative batch-wise
@@ -110,7 +110,7 @@ class ACWLoss(nn.Module):
         self.weight = (self.weight * (self.itr - 1) + sum_norm) / self.itr
         mfb = self.weight.mean() / (self.weight + self.eps)
         mfb = mfb / mfb.sum()
-        acw = (1. + pred + one_hot_label) * mfb.unsqueeze(-1).unsqueeze(-1)
+        acw = (1.0 + pred + one_hot_label) * mfb.unsqueeze(-1).unsqueeze(-1)
 
         if mask is not None:
             acw[mask] = 0
@@ -120,7 +120,7 @@ class ACWLoss(nn.Module):
     def encode_one_hot_label(self, pred, target):
         one_hot_label = pred.detach() * 0
         if self.ignore_index is not None:
-            mask = (target == self.ignore_index)
+            mask = target == self.ignore_index
             target = target.clone()
             target[mask] = 0
             one_hot_label.scatter_(1, target.unsqueeze(1), 1)

@@ -34,14 +34,14 @@ def img_load(filename, gray=False, scale_rate=1.0, enhance=False):
         if scale_rate != 1.0:
             image = scale(image, scale_rate)
         if enhance:
-            image = Image.fromarray(np.asarray(image, dtype='uint8'))
+            image = Image.fromarray(np.asarray(image, dtype="uint8"))
             contrast = ImageEnhance.Contrast(image)
             image = contrast.enhance(1.55)
     else:
         image = cv2.imread(filename, -1)  # read gray image
         if scale_rate != 1.0:
             image = scale(image, scale_rate, interpolation=cv2.INTER_NEAREST)
-        image = np.asarray(image, dtype='uint8')
+        image = np.asarray(image, dtype="uint8")
 
     return image
 
@@ -49,34 +49,31 @@ def img_load(filename, gray=False, scale_rate=1.0, enhance=False):
 def img_mask_crop(image, mask, size=(256, 256), limits=(224, 512)):
     rc = RandomSizedCrop(height=size[0], width=size[1], min_max_height=limits)
     crops = rc(image=image, mask=mask)
-    return crops['image'], crops['mask']
+    return crops["image"], crops["mask"]
 
 
 def img_mask_pad(image, mask, target=(288, 288)):
     padding = PadIfNeeded(p=1.0, min_height=target[0], min_width=target[1])
     padded = padding(image=image, mask=mask)
-    return padded['image'], padded['mask']
+    return padded["image"], padded["mask"]
 
 
 def composed_augmentation(image, mask):
-    aug = Compose([
-        VerticalFlip(p=0.5),
-        HorizontalFlip(p=0.5),
-        RandomRotate90(p=0.5),
-        HueSaturationValue(hue_shift_limit=20,
-                           sat_shift_limit=5,
-                           val_shift_limit=15, p=0.5),
+    aug = Compose(
+        [
+            VerticalFlip(p=0.5),
+            HorizontalFlip(p=0.5),
+            RandomRotate90(p=0.5),
+            HueSaturationValue(
+                hue_shift_limit=20, sat_shift_limit=5, val_shift_limit=15, p=0.5
+            ),
+            OneOf([GridDistortion(p=0.5), Transpose(p=0.5)], p=0.5),
+            CLAHE(p=0.5),
+        ]
+    )
 
-        OneOf([
-            GridDistortion(p=0.5),
-            Transpose(p=0.5)
-        ], p=0.5),
-
-        CLAHE(p=0.5)
-    ])
-
-    auged = aug(image=image, mask=mask)
-    return auged['image'], auged['mask']
+    augmented = aug(image=image, mask=mask)
+    return augmented["image"], augmented["mask"]
 
 
 def get_random_pos(img, window_shape):
@@ -133,7 +130,7 @@ def torch_transpose2(x: Tensor):
 def pad_tensor(image_tensor: Tensor, pad_size: int = 32):
     """Pads input tensor to make it's height and width dividable by @pad_size
 
-    :param image_tensor: Input tensor of shape NCHW
+    :param image_tensor: Input tensor of shape NxCxHxW
     :param pad_size: Pad size
     :return: Tuple of output tensor and pad params. Second argument can be used to reverse pad operation of metrics output
     """
@@ -165,10 +162,16 @@ def pad_tensor(image_tensor: Tensor, pad_size: int = 32):
     return image_tensor, pad
 
 
-def unpad_tensor(image_tensor, pad):
+def rm_pad_tensor(image_tensor, pad):
+    """Remove padding from a tensor
+
+    :param image_tensor:
+    :param pad:
+    :return:
+    """
     pad_left, pad_right, pad_top, pad_btm = pad
     rows, cols = image_tensor.size(2), image_tensor.size(3)
-    return image_tensor[..., pad_top:rows - pad_btm, pad_left: cols - pad_right]
+    return image_tensor[..., pad_top : rows - pad_btm, pad_left : cols - pad_right]
 
 
 def image_enhance(img, gama=1.55):

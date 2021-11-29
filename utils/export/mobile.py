@@ -4,11 +4,13 @@ import torch
 import torch.nn as nn
 from torch.utils.mobile_optimizer import optimize_for_mobile
 
-from models.mscg import RX101GCN3Head4Channel
-from models.mscg import RX50GCN3Head4Channel
+from core.net import RX101GCN3Head4Channel
+from core.net import RX50GCN3Head4Channel
 
 
-def convert_to_mobile(model: str, source_path: str or Path, output_path: str or Path, num_classes: int) -> nn.Module:
+def convert_to_mobile(
+    model: str, source_path: str or Path, output_path: str or Path, num_classes: int
+) -> nn.Module:
     """Main function for converting MSCG core to PyTorch Mobile
 
     **NOTE** Usage of PyTorch Mobile to convert the MSCG-Nets requires usage of a matching Android PyTorch Mobile Version 1.10
@@ -25,8 +27,11 @@ def convert_to_mobile(model: str, source_path: str or Path, output_path: str or 
         return _convert_rx101_to_mobile(source_path, output_path, num_classes)
 
 
-def _convert_rx50_to_mobile(model_path: str, num_classes: int,
-                            output_path: str or Path = "./rx50_optimized_scripted1.ptl"):
+def _convert_rx50_to_mobile(
+    model_path: str,
+    num_classes: int,
+    output_path: str or Path = "./rx50_optimized_scripted1.ptl",
+):
     """Function handling conversion of MSCG-Net Rx50 Models
 
     Models are loaded using the CPU for conversion to PyTorch Mobile
@@ -45,14 +50,20 @@ def _convert_rx50_to_mobile(model_path: str, num_classes: int,
     # Add on classifier
     model.graph_layers2.fc[0] = nn.Linear(128, num_classes)
     # print(metrics)
-    model.scg.mu[0] = nn.Conv2d(1024, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-    model.scg.logvar[0] = nn.Conv2d(1024, num_classes, kernel_size=(1, 1), stride=(1, 1))
-    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')), strict=False)
+    model.scg.mu[0] = nn.Conv2d(
+        1024, num_classes, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)
+    )
+    model.scg.logvar[0] = nn.Conv2d(
+        1024, num_classes, kernel_size=(1, 1), stride=(1, 1)
+    )
+    model.load_state_dict(
+        torch.load(model_path, map_location=torch.device("cpu")), strict=False
+    )
     model.eval()
     # print(model.eval())
     # summary(metrics,input_size=(4,512,512))
     # print(summary(metrics,(10,4,32,32)))
-    example = torch.rand(10, 4, 32, 32)
+    example = torch.rand(10, 4, 32, 32) # N, B, H, W # TODO: where do we get 4 channels from? is it (batches, channels, nodes, nodes) or (classes, channels, nodes, nodes)?
     traced_script_module = torch.jit.trace(model, example)
     traced_script_module.save("./rx50_jit_traced.pt")
 
@@ -65,8 +76,11 @@ def _convert_rx50_to_mobile(model_path: str, num_classes: int,
     return optimized_scripted_module
 
 
-def _convert_rx101_to_mobile(model_path: str, num_classes: int,
-                             output_path: str or Path = "./rx101_optimized_scripted1.ptl"):
+def _convert_rx101_to_mobile(
+    model_path: str,
+    num_classes: int,
+    output_path: str or Path = "./rx101_optimized_scripted1.ptl",
+):
     """Function handling conversion of MSCG-Net Rx101 Models
 
     :param model_path:
@@ -75,7 +89,7 @@ def _convert_rx101_to_mobile(model_path: str, num_classes: int,
     :return:
     """
     # PATH='/content/drive/MyDrive/MSCGNET_pradeep_clone/P3-SemanticSegmentation-main/ckpt/epoch_8_loss_0.99527_acc_0.82278_acc-cls_0.60967_mean-iu_0.48098_fwavacc_0.70248_f1_0.62839_lr_0.0000829109.pth'
-    PATH = '/content/drive/MyDrive/MSCGNET_pradeep_clone/P3-SemanticSegmentation-main/ckpt/MSCG-Rx50-epoch_4_loss_1.12325_acc_0.76337_acc-cls_0.52928_mean-iu_0.39289_fwavacc_0.62579_f1_0.53039_lr_0.0000856692.pth'
+    PATH = "/content/drive/MyDrive/MSCGNET_pradeep_clone/P3-SemanticSegmentation-main/ckpt/MSCG-Rx50-epoch_4_loss_1.12325_acc_0.76337_acc-cls_0.52928_mean-iu_0.39289_fwavacc_0.62579_f1_0.53039_lr_0.0000856692.pth"
     # metrics = torch.load(PATH,map_location=torch.device('cpu'))
 
     model = RX101GCN3Head4Channel()
@@ -86,9 +100,13 @@ def _convert_rx101_to_mobile(model_path: str, num_classes: int,
     # Add on classifier for the number of classes
     model.graph_layers2.fc[0] = nn.Linear(128, 10)
     # print(metrics)
-    model.scg.mu[0] = nn.Conv2d(1024, 10, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    model.scg.mu[0] = nn.Conv2d(
+        1024, 10, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)
+    )
     model.scg.logvar[0] = nn.Conv2d(1024, 10, kernel_size=(1, 1), stride=(1, 1))
-    model.load_state_dict(torch.load(PATH, map_location=torch.device('cpu')), strict=False)
+    model.load_state_dict(
+        torch.load(PATH, map_location=torch.device("cpu")), strict=False
+    )
     model.eval()
     print(model.eval())
     # print(summary(metrics,(10,4,32,32)))

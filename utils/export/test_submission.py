@@ -14,11 +14,17 @@ import time
 import itertools
 
 from utils.data.augmentations import scale
-from utils.data.preprocess import land_classes, IDS, get_real_test_list
+from utils.data.preprocess import LAND_CLASSES, IDS, get_real_test_list
 from utils.data.visual import mean_std
-from utils.trace.checkpoint import get_net, checkpoint1, checkpoint2, load_test_img, load_ids
+from utils.trace.checkpoint import (
+    get_net,
+    checkpoint1,
+    checkpoint2,
+    load_test_img,
+    load_ids,
+)
 
-output_path = os.path.join('../../submission', 'results_checkpoint1_checkpoint2_tta')
+output_path = os.path.join("../../submission", "results_checkpoint1_checkpoint2_tta")
 
 
 def main():
@@ -36,10 +42,17 @@ def main():
     # checkpoint1 + checkpoint2, test score 0.599,
     # checkpoint1 + checkpoint2 + checkpoint3, test score 0.608
 
-    test_files = get_real_test_list(bands=['NIR', 'RGB'])
-    tta_real_test(nets, stride=600, batch_size=1,
-                  norm=False, window_size=(512, 512), labels=land_classes,
-                  test_set=test_files, all=True)
+    test_files = get_real_test_list(bands=["NIR", "RGB"])
+    tta_real_test(
+        nets,
+        stride=600,
+        batch_size=1,
+        norm=False,
+        window_size=(512, 512),
+        labels=LAND_CLASSES,
+        test_set=test_files,
+        all=True,
+    )
 
 
 def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512, 512)):
@@ -63,48 +76,72 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, wsize=(512
         window_size = img.shape[:2]
         total = count_sliding_window(img, step=stride, window_size=wsize) // batch_size
         for i, coords in enumerate(
-                tqdm(grouper(batch_size, sliding_window(img, step=stride, window_size=window_size)), total=total,
-                     leave=False)):
+            tqdm(
+                grouper(
+                    batch_size,
+                    sliding_window(img, step=stride, window_size=window_size),
+                ),
+                total=total,
+                leave=False,
+            )
+        ):
 
-            image_patches = [np.copy(img[x:x + w, y:y + h]).transpose((2, 0, 1)) for x, y, w, h in coords]
+            image_patches = [
+                np.copy(img[x : x + w, y : y + h]).transpose((2, 0, 1))
+                for x, y, w, h in coords
+            ]
             imgs_flip = [patch[:, ::-1, :] for patch in image_patches]
             imgs_mirror = [patch[:, :, ::-1] for patch in image_patches]
 
-            image_patches = np.concatenate((image_patches, imgs_flip, imgs_mirror), axis=0)
+            image_patches = np.concatenate(
+                (image_patches, imgs_flip, imgs_mirror), axis=0
+            )
             image_patches = np.asarray(image_patches)
             image_patches = torch.from_numpy(image_patches).cuda()
 
             for net in nets:
-                outs = net(image_patches)  # + Fn.torch_rot270(core(Fn.torch_rot90(image_patches)))
+                outs = net(
+                    image_patches
+                )  # + Fn.torch_rot270(core(Fn.torch_rot90(image_patches)))
                 # outs = core(image_patches)
                 outs = outs.data.cpu().numpy()
 
                 b, _, _, _ = outs.shape
 
                 # Fill in the results array
-                for out, (x, y, w, h) in zip(outs[0:b // 3, :, :, :], coords):
+                for out, (x, y, w, h) in zip(outs[0 : b // 3, :, :, :], coords):
                     out = out.transpose((1, 2, 0))
-                    pred[x:x + w, y:y + h] += out
+                    pred[x : x + w, y : y + h] += out
 
-                for out, (x, y, w, h) in zip(outs[b // 3:2 * b // 3, :, :, :], coords):
+                for out, (x, y, w, h) in zip(
+                    outs[b // 3 : 2 * b // 3, :, :, :], coords
+                ):
                     out = out[:, ::-1, :]  # flip back
                     out = out.transpose((1, 2, 0))
-                    pred[x:x + w, y:y + h] += out
+                    pred[x : x + w, y : y + h] += out
 
-                for out, (x, y, w, h) in zip(outs[2 * b // 3: b, :, :, :], coords):
+                for out, (x, y, w, h) in zip(outs[2 * b // 3 : b, :, :, :], coords):
                     out = out[:, :, ::-1]  # mirror back
                     out = out.transpose((1, 2, 0))
-                    pred[x:x + w, y:y + h] += out
+                    pred[x : x + w, y : y + h] += out
 
-                del (outs)
+                del outs
 
         pred_all += scale(pred, 1.0 / scale_rate)
 
     return pred_all
 
 
-def tta_real_test(nets, all=False, labels=land_classes, norm=False,
-                  test_set=None, stride=600, batch_size=5, window_size=(512, 512)):
+def tta_real_test(
+    nets,
+    all=False,
+    labels=LAND_CLASSES,
+    norm=False,
+    test_set=None,
+    stride=600,
+    batch_size=5,
+    window_size=(512, 512),
+):
     """
 
     :param nets:
@@ -118,9 +155,9 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
     :return:
     """
     # test_images, test_labels = (loadtestimg(test_set))
-    test_files = (load_test_img(test_set))
+    test_files = load_test_img(test_set)
     # gts = (loadgt(test_set))
-    id_list = (load_ids(test_set))
+    id_list = load_ids(test_set)
 
     all_preds = []
     # all_gts = []
@@ -134,7 +171,7 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
 
     for img, id in tqdm(zip(test_files, id_list), total=total_ids, leave=False):
         # org_img = img.copy()  # for visualization
-        img = np.asarray(img, dtype='float32')
+        img = np.asarray(img, dtype="float32")
         img = st.ToTensor()(img)
         img = img / 255.0
         if norm:
@@ -144,18 +181,33 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
         stime = time.time()
 
         with torch.no_grad():
-            pred = fusion_prediction(nets, image=img, scales=[1.0],
-                                     batch_size=batch_size, num_class=num_class, wsize=window_size)
+            pred = fusion_prediction(
+                nets,
+                image=img,
+                scales=[1.0],
+                batch_size=batch_size,
+                num_class=num_class,
+                wsize=window_size,
+            )
 
-        print('inference cost time: ', time.time() - stime)
+        print("inference cost time: ", time.time() - stime)
 
         pred = np.argmax(pred, axis=-1)
 
-        for key in ['boundaries', 'masks']:
+        for key in ["boundaries", "masks"]:
             pred = pred * np.array(
-                cv2.imread(os.path.join('/media/liu/diskb/data/Agriculture-Vision/test', key, id + '.png'), -1) / 255,
-                dtype=int)
-        filename = './{}.png'.format(id)
+                cv2.imread(
+                    os.path.join(
+                        "/media/liu/diskb/data/Agriculture-Vision/test",
+                        key,
+                        id + ".png",
+                    ),
+                    -1,
+                )
+                / 255,
+                dtype=int,
+            )
+        filename = "./{}.png".format(id)
         cv2.imwrite(os.path.join(output_path, filename), pred)
 
         # gtc = convert_from_color(gt)
@@ -172,7 +224,7 @@ def tta_real_test(nets, all=False, labels=land_classes, norm=False,
         return all_preds
 
 
-def metrics(predictions, gts, label_values=land_classes):
+def metrics(predictions, gts, label_values=LAND_CLASSES):
     """
 
     :param predictions:
@@ -180,11 +232,7 @@ def metrics(predictions, gts, label_values=land_classes):
     :param label_values:
     :return:
     """
-    cm = confusion_matrix(
-        gts,
-        predictions,
-        range(len(label_values))
-    )
+    cm = confusion_matrix(gts, predictions, range(len(label_values)))
 
     print("Confusion matrix :")
     print(cm)
@@ -204,7 +252,7 @@ def metrics(predictions, gts, label_values=land_classes):
     f1_score = np.zeros(len(label_values))
     for i in range(len(label_values)):
         try:
-            f1_score[i] = 2. * cm[i, i] / (np.sum(cm[i, :]) + np.sum(cm[:, i]))
+            f1_score[i] = 2.0 * cm[i, i] / (np.sum(cm[i, :]) + np.sum(cm[:, i]))
         except BaseException:
             # Ignore exception if there is no element in class i for test set
             pass
@@ -245,7 +293,7 @@ def count_sliding_window(top, step=10, window_size=(20, 20)):
             if y + window_size[1] > top.shape[1]:
                 y = top.shape[1] - window_size[1]
             c += 1
-    print('total number of sliding windows: ', c)
+    print("total number of sliding windows: ", c)
     return c
 
 
@@ -274,5 +322,5 @@ def check_mkdir(dir_name):
         os.mkdir(dir_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

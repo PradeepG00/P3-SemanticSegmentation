@@ -30,11 +30,14 @@ def setup_logger(log_directory: str, model_name: str) -> None:
     :return:
     """
     logging.basicConfig(level=logging.DEBUG)
-    logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+    logFormatter = logging.Formatter(
+        "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
+    )
     rootLogger = logging.getLogger()
 
-    log_path = "./logs/{0}/{1}.log".format(f"/{model_name}",
-                                           f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}")
+    log_path = "./logs/{0}/{1}.log".format(
+        f"/{model_name}", f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"
+    )
     log_dir = f"./logs/{model_name}"
     if os.path.exists(log_dir):
         print("Saving log files to:", log_dir)
@@ -42,8 +45,7 @@ def setup_logger(log_directory: str, model_name: str) -> None:
         print("Creating log directory:", log_dir)
         os.mkdir(log_dir)
 
-    fileHandler = logging.FileHandler(
-        log_path)
+    fileHandler = logging.FileHandler(log_path)
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
 
@@ -60,7 +62,7 @@ def tracer(func):
     """
     # Getting the argument names of the
     # called function
-    arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
+    arg_names = func.__code__.co_varnames[: func.__code__.co_argcount]
 
     # Getting the Function name of the
     # called function
@@ -70,11 +72,15 @@ def tracer(func):
         print(f_name, "(", end="")
 
         # printing the function arguments
-        print(', '.join('% s = % r' % entry
-                        for entry in zip(arg_names, args[:len(arg_names)])), end=", ")
+        print(
+            ", ".join(
+                "% s = % r" % entry for entry in zip(arg_names, args[: len(arg_names)])
+            ),
+            end=", ",
+        )
 
         # Printing the variable length Arguments
-        print("args =", list(args[len(arg_names):]), end=", ")
+        print("args =", list(args[len(arg_names) :]), end=", ")
 
         # Printing the variable length keyword
         # arguments
