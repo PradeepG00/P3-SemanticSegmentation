@@ -46,8 +46,8 @@ This repository contains MSCG-Net models (MSCG-Net-50 and MSCG-Net-101) for sema
 1. Configure your environment using either `virtual environment`, `anaconda`, or your choice of an environment manager
 2. Run the following install the `mscg-net` package dependencies while in the project root directory
 ```bash
-pip install -r requirements.txt # install  mscg-models dependencies
-pip install -e .  # install mscg-models as a package which resolves the issue of pathing
+pip install -r requirements.txt # install  mscg-core dependencies
+pip install -e .  # install mscg-core as a package which resolves the issue of pathing
 ```
 
 ## Usage
@@ -169,6 +169,10 @@ Please note that all backbones used pretrained weights on **ImageNet** that can 
 ## API Documentation
 Run the MAKEFILE using the following
 ```
+# initialize doc 
+sphinx-quickstart
+
+# build sphinx docs
 sphinx-build -b html docs/source/ docs/build/
 ```
 
