@@ -1,6 +1,5 @@
 # TODO: implement a similar system to that of ultralytic's yolov5 or other ML CLIs
 import click
-from utils.logger import tracer
 
 MODELS = [
     "Rx50",
@@ -17,7 +16,7 @@ def cli():
 @cli.command("train", short_help="Run TRAIN for a MODEL for an input DATASET using specified PARAMETERS")
 @click.option(
     "-m",
-    "--model",
+    "--metrics",
     type=click.Choice(choices=MODELS, case_sensitive=False), required=True
 )
 @click.option(
@@ -72,7 +71,7 @@ def train(model: str, dataset_path: str, parameters_path: str, gpu: bool, n_gpus
     # TODO: display training config
     #   -
     print(model, dataset_path, parameters_path, gpu, n_gpus, debug)
-    # click.echo(model, dataset, parameters)
+    # click.echo(metrics, dataset, parameters)
 
 
 # TODO: tbd whether necessary or not
