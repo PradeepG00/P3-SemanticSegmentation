@@ -3,34 +3,51 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import os
+import random
 import sys
 import time
+import datetime
 
+import numpy as np
+import torch
 import torchvision.utils as vutils
-from utils.model.loss import *
+import tqdm
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
-from utils.config import *
-from utils.model.optimizer import *
-from utils.model.lr import init_params_lr
-from utils.validate import *
-from utils.visual import *
-from models.mscg import get_model
+from utils.config import AgricultureConfiguration
+from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
+from utils.data.visual import get_visualize, colorize_mask
+from utils.metrics.loss import ACWLoss
+from utils.metrics.lr import init_params_lr
+from core.net import get_model
 
 #####################################
 # Setup Logging
 #####################################
 import logging
 
+from utils.metrics.optimizer import Lookahead
+from utils.metrics.validate import AverageMeter, evaluate
+
 logging.basicConfig(level=logging.DEBUG)
 logFormatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
 rootLogger = logging.getLogger()
 
+model_name = "rx101"
+log_path = "./logs/{0}/{1}.log".format(f"/{model_name}", f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}")
+log_dir = f"./logs/{model_name}"
+if os.path.exists(log_dir):
+    print("Saving log files to:", log_dir)
+else:
+    print("Creating log directory:", log_dir)
+    os.mkdir(log_dir)
+
 fileHandler = logging.FileHandler(
-    "./logs/{0}/{1}.log".format("./", f"rx101-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"))
+    log_path)
 fileHandler.setFormatter(logFormatter)
 rootLogger.addHandler(fileHandler)
 
@@ -43,7 +60,7 @@ rootLogger.addHandler(consoleHandler)
 #####################################
 cudnn.benchmark = True
 
-# the specific meta-data / config of the model's training session should
+# the specific meta-data / config of the metrics's training session should
 # be stored in either a JSON or YAML format to ease loading
 train_args = AgricultureConfiguration(net_name='MSCG-Rx101',
                                       data='Agriculture',
@@ -67,11 +84,14 @@ train_args.max_iter = 1e8
 
 train_args.snapshot = ''
 train_args.print_freq = 100
-train_args.save_pred = False
+train_args.save_pred = True # default False
 
 # output training configuration to a text file
 train_args.write2txt()
-writer = SummaryWriter(os.path.join(train_args.save_path, 'tblog'))
+# output training metrics to tensorboard directory
+tb_dir = os.path.join(train_args.save_path, 'tblog')
+logging.debug("Saving tensorboard results to: {}".format(tb_dir))
+writer = SummaryWriter(tb_dir)
 visualize, restore = get_visualize(train_args)
 
 
@@ -93,13 +113,19 @@ def train_rx101():
         prepare_gt(TRAIN_ROOT)
         random_seed(train_args.seeds)
         train_args.write2txt()
-        net = get_model(name=train_args.model_name, classes=train_args.nb_classes,
+        net = get_model(name=train_args.model_name,
+                        classes=train_args.nb_classes,
                         node_size=train_args.node_size)
         print(os.path.join(train_args.save_path, 'tblog'))
         save_path = os.path.join(train_args.save_path, 'tblog')
         logging.debug(save_path)
-        checkpoint_path = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_10_loss_1.62912_acc_0.75860_acc-cls_0.54120_mean-iu_0.36020_fwavacc_0.61867_f1_0.50060_lr_0.0001175102.pth"
-        net, epoch_init = train_args.resume_train(net, checkpoint_path)
+        # checkpoint_path = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_10_loss_1.62912_acc_0.75860_acc-cls_0.54120_mean-iu_0.36020_fwavacc_0.61867_f1_0.50060_lr_0.0001175102.pth"
+        checkpoint_path = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_7_loss_1.26578_acc_0.77763_acc-cls_0.53562_mean-iu_0.40502_fwavacc_0.64379_f1_0.54641_lr_0.0001217217.pth"
+        net, start_epoch = train_args.resume_train(
+            net,
+            # checkpoint_path=checkpoint_path
+        )
+        net.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(0)), strict=False)
 
         torch.cuda.set_device(0)
         net.cuda()
@@ -115,13 +141,17 @@ def train_rx101():
 
         # first train with Adam for around 10 epoch, then manually change to SGD
         # to continue the rest train, Note: need resume train from the saved snapshot
-        # base_optimizer = optim.Adam(params, amsgrad=True)
-        base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
+        if train_args.optimizer == "adam":
+            base_optimizer = optim.Adam(params, amsgrad=True)
+        elif train_args.optimizer == "sgd":
+            base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
         optimizer = Lookahead(base_optimizer, k=6)
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 60, 1.18e-6)
 
-        epoch_current = 0
-
+        new_ep = 7
+        print(checkpoint_path is not None and new_ep > 0)
+        if checkpoint_path is not None and new_ep > 0:
+            logging.debug(f"Resuming using model at: {str(checkpoint_path)}\nstarting at epoch: {new_ep}")
         while True:
             # setup timer for training benchmarking
             start_time = time.time()
@@ -134,7 +164,7 @@ def train_rx101():
             train_args.lr = optimizer.param_groups[0]['lr']
             # configure steps
             num_iter = len(train_loader)
-            curr_iter = ((epoch_init + epoch_current) - 1) * num_iter
+            curr_iter = ((start_epoch + new_ep) - 1) * num_iter
             print('---curr_iter: {}, num_iter per epoch: {}---'.format(curr_iter, num_iter))
 
             for i, (inputs, labels) in enumerate(train_loader):
@@ -151,7 +181,7 @@ def train_rx101():
 
                 loss.backward()
                 optimizer.step()
-                lr_scheduler.step(epoch=(epoch_init + epoch_current))
+                lr_scheduler.step(epoch=(start_epoch + new_ep))
 
                 train_main_loss.update(main_loss.item(), N)
                 aux_train_loss.update(cost.item(), inputs.size(0))
@@ -166,24 +196,24 @@ def train_rx101():
                     new_time = time.time()
 
                     print('[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
-                          (epoch_init + epoch_current, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
+                          (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
                            cls_train_loss.avg,
                            optimizer.param_groups[0]['lr'], new_time - start_time))
                     logging.debug(
                         '[epoch %d], [iter %d / %d], [loss %.5f, aux %.5f, cls %.5f], [lr %.10f], [time %.3f]' %
-                        (epoch_init + epoch_current, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
+                        (start_epoch + new_ep, i + 1, num_iter, train_main_loss.avg, aux_train_loss.avg,
                          cls_train_loss.avg,
                          optimizer.param_groups[0]['lr'], new_time - start_time))
 
                     start_time = new_time
 
-            validate(net, val_set, val_loader, criterion, optimizer, epoch_init + epoch_current, epoch_current)
+            validate(net, val_set, val_loader, criterion, optimizer, start_epoch + new_ep, new_ep)
             end_time = time.time()
-            logging.debug(f"training time of epoch-{epoch_current}: {end_time - start_time}s")
-            epoch_current += 1
+            logging.debug(f"training time of epoch-{new_ep}: {end_time - start_time}s")
+            new_ep += 1
     except Exception as e:
         # TODO: add clearing out the collected arrays if there is failure
-        # TODO: display place of writing the model checkpoints
+        # TODO: display place of writing the metrics checkpoints
         # TODO: display place of writing the tensorboard logs
         # TODO: display place of writing the
         logging.debug(e)
@@ -198,7 +228,7 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
     inputs_all, gts_all, predictions_all = [], [], []
     i = 0  # DEBUG
     with torch.no_grad():
-        for vi, (inputs, gts) in enumerate(val_loader):
+        for vi, (inputs, gts) in tqdm.tqdm(enumerate(val_loader)):
             logging.debug(f"aggregate input, prediction, ground-truth -- iteration {i}")
             inputs, gts = inputs.cuda(), gts.cuda()
             N = inputs.size(0) * inputs.size(2) * inputs.size(3)
@@ -222,6 +252,7 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
 
     net.train()
     return val_loss, inputs_all, gts_all, predictions_all
+
 
 # TODO: is this somethign that can be multiprocessed ie does not require sequential processing?
 def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
@@ -250,16 +281,17 @@ def update_checkpoint(net, optimizer, epoch, new_ep, val_loss,
                         mean_iu, fwavacc, f1,
                         optimizer.param_groups[0]['lr']
                     )
-    logging.debug("checkpointing model at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
+    logging.debug("checkpointing metrics at: {}".format(os.path.join(train_args.save_path, snapshot_name + '.pth')))
     torch.save(net.state_dict(),
                os.path.join(train_args.save_path, snapshot_name + '.pth'))
     if updated or (train_args.best_record['val_loss'] > avg_loss):
-        logging.debug("checkpointing model at:", os.path.join(train_args.save_path, snapshot_name + '.pth'))
+        logging.debug("checkpointing metrics at: {}".format(os.path.join(train_args.save_path, snapshot_name + '.pth')))
         torch.save(net.state_dict(),
                    os.path.join(train_args.save_path, snapshot_name + '.pth'))
         # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
     if train_args.save_pred:
-        if updated or (new_ep % 5 == 0):
+        if updated:
+            # or (new_ep % 5 == 0):
             val_visual = visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all)
 
     if len(val_visual) > 0:
@@ -274,7 +306,7 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
         save_dir = os.path.join(train_args.save_path, str(epoch) + '_' + str(new_ep))
         check_mkdir(save_dir)
 
-    logging.debug("saving visuals of checkpoint model at:", save_dir)
+    logging.debug("saving visuals of checkpoint metrics at:", save_dir)
     for idx, data in enumerate(zip(inputs_all, gts_all, predictions_all)):
         if data[0] is None:
             continue
@@ -291,7 +323,7 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
 
         # if train_args['val_save_to_img_file']:
         if train_args.save_pred:
-            logging.debug("saving prediction to:", os.path.join(save_dir, '%d_prediction.png' % idx))
+            logging.debug("saving prediction to: {}".format(os.path.join(save_dir, '%d_prediction.png' % idx)))
             input_pil.save(os.path.join(save_dir, '%d_input.png' % idx))
             predictions_pil.save(os.path.join(save_dir, '%d_prediction.png' % idx))
             gt_pil.save(os.path.join(save_dir, '%d_gt.png' % idx))
