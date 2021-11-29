@@ -149,3 +149,8 @@ tags
 
 # Logs
 *.logs
+
+# PyTorch Artifacts
+*.pth
+*.pt
+*.ptl
