@@ -8,12 +8,12 @@ Hello world
 Hello world
 Hello world
 
-.. automodule:: utils.checkpoint
+.. automodule:: utils.trace.checkpoint
    :members:
 
 Loss
 -------------
-.. automodule:: utils.loss
+.. automodule:: utils.metrics.loss
    :members:
    :special-members: __init__, __name__
 
@@ -24,27 +24,27 @@ Configuration
 
 Logger
 -------------
-.. automodule:: utils.logger
+.. automodule:: utils.trace.logger
    :members:
 
-Lookahead
+Optimizer
 -------------
-.. automodule:: utils.lookahead
+.. automodule:: utils.metrics.optimizer
    :members:
 
 Learning Rate
 -------------
-.. automodule:: utils.lr
+.. automodule:: utils.metrics.lr
    :members:
 
 Validate
 -------------
-.. automodule:: utils.validate
+.. automodule:: utils.metrics.validate
    :members:
 
 Visual
 -------------
-.. automodule:: utils.visual
+.. automodule:: utils.data.visual
    :members:
 
 

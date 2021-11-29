@@ -5,10 +5,10 @@ Tables of Results
 Results Summary
 ---------------
 
-**NOTE** all our single model's scores are computed with just single-scale (512x512) and single feed-forward inference without TTA. TTA denotes test time augmentation (e.g. flip and mirror). Ensemble_TTA (checkpoint1,2) denotes two models (checkpoint1, and checkpoint2) ensemble with TTA, and (checkpoint1, 2, 3) denotes three models ensemble.
+**NOTE** all our single model's scores are computed with just single-scale (512x512) and single feed-forward inference without TTA. TTA denotes test time augmentation (e.g. flip and mirror). Ensemble_TTA (checkpoint1,2) denotes two core.net.(checkpoint1, and checkpoint2) ensemble with TTA, and (checkpoint1, 2, 3) denotes three core.net.ensemble.
 
 +--------------------------------------------+------------------+------------------+------------------+------------------+------------------+-----------------+------------------+------------------+
-| Models                                     | mIoU (%)         | Background       | Cloud shadow     | Double plant     | Planter skip     | Standing water  | Waterway         | Weed cluster     |
+| core.net.                                    | mIoU (%)         | Background       | Cloud shadow     | Double plant     | Planter skip     | Standing water  | Waterway         | Weed cluster     |
 +============================================+==================+==================+==================+==================+==================+=================+==================+==================+
 | MSCG-Net-50 (checkpoint1)                  | 54.7             | 78.0             | 50.7             | 46.6             | 34.3             | 68.8            | 51.3             | 53.0             |
 +--------------------------------------------+------------------+------------------+------------------+------------------+------------------+-----------------+------------------+------------------+
@@ -26,10 +26,10 @@ Results Summary
 
 Model Size
 ----------
-**NOTE** all backbones used pretrained weights on **ImageNet** that can be imported and downloaded from the `link <https://github.com/Cadene/pretrained-models.pytorch#senet>`_. And MSCG-Net-101_k31 has exactly the same architecture wit MSCG-Net-101, while it is trained with extra 1/3 validation set (4,431) instead of just using the official training images (12,901).
+**NOTE** all backbones used pretrained weights on **ImageNet** that can be imported and downloaded from the `link <https://github.com/Cadene/pretrained-core.net.pytorch#senet>`_. And MSCG-Net-101_k31 has exactly the same architecture wit MSCG-Net-101, while it is trained with extra 1/3 validation set (4,431) instead of just using the official training images (12,901).
 
 +-------------------+---------------------+-------------+---------+----------------------------------+
-| Models            | Backbones           | Parameters  | GFLOPs  | Inference time <br />(CPU/GPU )  |
+| core.net.           | Backbones           | Parameters  | GFLOPs  | Inference time <br />(CPU/GPU )  |
 +===================+=====================+=============+=========+==================================+
 | MSCG-Net-50       | Se_ResNext50_32x4d  | 9.59        | 18.21   | 522 / 26 ms                      |
 +-------------------+---------------------+-------------+---------+----------------------------------+
