@@ -154,3 +154,7 @@ tags
 *.pth
 *.pt
 *.ptl
+
+# MSCG Training Artifacts
+checkpoints/*
+submission/*

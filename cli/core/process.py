@@ -33,7 +33,7 @@ from utils.trace.logger import setup_logger
 
 # TODO: figure out the system for trzaining given the config of the text file which specifies a .pth checkpoint to allow for resuming of a certain state of training
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
+from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
 from utils.data.visual import colorize_mask, get_visualize
 from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
