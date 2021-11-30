@@ -12,12 +12,10 @@ from sklearn.model_selection import train_test_split, KFold
 
 import cv2
 
-# change DATASET ROOT to your dataset path
-DATASET_ROOT = "/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021"
-
-TRAIN_ROOT = os.path.join(DATASET_ROOT, "train")
-VAL_ROOT = os.path.join(DATASET_ROOT, "val")
-TEST_ROOT = os.path.join(DATASET_ROOT, "test/images")
+from utils import check_mkdir
+from utils.data import TRAIN_DIR, VAL_DIR, TEST_IMAGES_DIR
+from utils.data import DATASET_ROOT
+# from utils.data.dataset import DATASET_ROOT
 
 """
 In the loaded numpy array, only 0-6 integer labels are allowed, and they represent the annotations in the following way:
@@ -107,9 +105,9 @@ GT = "gt"
 IDS = "IDs"
 
 
-def check_mkdir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+# def check_mkdir(dir_name):
+#     if not os.path.exists(dir_name):
+#         os.mkdir(dir_name)
 
 
 def img_basename(filename) -> str:
@@ -120,7 +118,7 @@ def is_image(filename) -> bool:
     return any(filename.endswith(ext) for ext in [".png", ".jpg"])
 
 
-def prepare_gt(root_folder=TRAIN_ROOT, out_path="gt") -> None:
+def prepare_gt(root_folder=TRAIN_DIR, out_path="gt") -> None:
     """Function for creating ground-truths from a specified directory
 
 
@@ -186,7 +184,7 @@ def prepare_gt(root_folder=TRAIN_ROOT, out_path="gt") -> None:
             cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def reset_gt(root_folder=TRAIN_ROOT, out_path="gt"):
+def reset_gt(root_folder=TRAIN_DIR, out_path="gt"):
     """***BREAKING***
 
     :param root_folder:
@@ -218,7 +216,7 @@ def reset_gt(root_folder=TRAIN_ROOT, out_path="gt"):
     #     # cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def get_training_list(root_folder=TRAIN_ROOT, count_label=True):
+def get_training_list(root_folder=TRAIN_DIR, count_label=True):
     dict_list = {}
     basename = [
         img_basename(f) for f in os.listdir(os.path.join(root_folder, "images/nir"))
@@ -257,8 +255,8 @@ def split_train_val_test_sets(
     :param seeds:
     :return:
     """
-    train_id, t_list = get_training_list(root_folder=TRAIN_ROOT, count_label=False)
-    val_id, v_list = get_training_list(root_folder=VAL_ROOT, count_label=False)
+    train_id, t_list = get_training_list(root_folder=TRAIN_DIR, count_label=False)
+    val_id, v_list = get_training_list(root_folder=VAL_DIR, count_label=False)
 
     # create k-folds dataset of folder paths
     if KF >= 2:
@@ -315,7 +313,7 @@ def split_train_val_test_sets(
 
 
 def get_real_test_list(
-        root_folder=TEST_ROOT, data_folder=METADATA_DIR_DICT, name="Agriculture", bands=["RGB"]
+        root_folder=TEST_IMAGES_DIR, data_folder=METADATA_DIR_DICT, name="Agriculture", bands=["RGB"]
 ):
     dict_list = {}
     basename = [img_basename(f) for f in os.listdir(os.path.join(root_folder, "nir"))]

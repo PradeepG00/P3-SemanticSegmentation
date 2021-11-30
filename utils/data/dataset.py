@@ -9,12 +9,12 @@ from torch.utils.data import Dataset
 import torchvision.transforms as standard_transforms
 
 # from utils.config import DATASET_ROOT
+from . import DATASET_ROOT
 from utils.data.augmentations import img_load, img_mask_crop
 from utils.data.preprocess import IMG, GT
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
-DATASET_ROOT = "/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021"
 
 
 class AgricultureDataset(Dataset):

@@ -1,16 +1,51 @@
 # from lib.core.mscgnet import *
 
 # score 0.547, no TTA
+import datetime
+import logging
 import os
 
 import numpy as np
 import torch
-from PIL.Image import Image
+from PIL import Image
 
 # from core.net import *
 from core.net import get_model
 from utils.data.augmentations import img_load
 from utils.data.preprocess import IDS, GT, IMG
+from utils import PROJECT_ROOT
+
+#####################################
+# Setup Logging
+# TODO: need to eventually cut after refacotirzation
+#####################################
+from utils.trace.gpu import get_available_gpus
+
+model_name = "ensemble"
+output_path = PROJECT_ROOT / "submission" / "results_checkpoint1_checkpoint2_tta"
+logging.basicConfig(level=logging.DEBUG)
+logFormatter = logging.Formatter(
+    "%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"
+)
+rootLogger = logging.getLogger()
+
+log_path = PROJECT_ROOT / "logs/{0}/{1}.log".format(
+    f"/{model_name}", f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"
+)
+log_dir = PROJECT_ROOT / f"logs/{model_name}"
+if os.path.exists(log_dir):
+    print("Saving log files to:", log_dir)
+else:
+    print("Creating log directory:", log_dir)
+    os.mkdir(log_dir)
+
+fileHandler = logging.FileHandler(log_path)
+fileHandler.setFormatter(logFormatter)
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
 
 checkpoint1 = {
     "core": "MSCG-Rx50",
@@ -18,7 +53,7 @@ checkpoint1 = {
     "bands": ["NIR", "RGB"],
     "num_classes": 10,
     "nodes": (32, 32),
-    "snapshot": "../checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_6_loss_1.09903_acc_0.77739_acc-cls_0.53071_mean-iu_0.39789_fwavacc_0.64861_f1_0.53678_lr_0.0000845121.pth",
+    "snapshot": "checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_6_loss_1.09903_acc_0.77739_acc-cls_0.53071_mean-iu_0.39789_fwavacc_0.64861_f1_0.53678_lr_0.0000845121.pth",
 }
 
 # score 0.550 , no TTA
@@ -28,7 +63,7 @@ checkpoint2 = {
     "bands": ["NIR", "RGB"],
     "num_classes": 10,
     "nodes": (32, 32),
-    "snapshot": "..checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_4_loss_1.26896_acc_0.77713_acc-cls_0.54260_mean-iu_0.40996_fwavacc_0.64399_f1_0.55334_lr_0.0001245001.pth",
+    "snapshot": "checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_4_loss_1.26896_acc_0.77713_acc-cls_0.54260_mean-iu_0.40996_fwavacc_0.64399_f1_0.55334_lr_0.0001245001.pth",
 }
 
 checkpoint3 = {
@@ -37,8 +72,8 @@ checkpoint3 = {
     "bands": ["NIR", "RGB"],
     "num_classes": 10,
     "nodes": (32, 32),
-    "snapshot": "../checkpoints/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_"
-    "mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth",
+    "snapshot": "checkpoints/epoch_15_loss_0.88412_acc_0.88690_acc-cls_0.78581_"
+                "mean-iu_0.68205_fwavacc_0.80197_f1_0.80401_lr_0.0001075701.pth",
 }
 
 
@@ -46,7 +81,7 @@ checkpoint3 = {
 # checkpoint1 + checkpoint2 + checkpoint3, test score 0.608
 
 
-def get_net(checkpoint=checkpoint1):
+def get_net(checkpoint=checkpoint1, use_gpu: bool = True):
     """Function for loading an MSCG-Net from a .pth checkpoint file path
 
     :param checkpoint: Dictionary containing model meta-data for loading from a .pth
@@ -58,8 +93,18 @@ def get_net(checkpoint=checkpoint1):
         node_size=checkpoint["nodes"],
     )
 
-    net.load_state_dict(torch.load(checkpoint["snapshot"]))
-    net.cuda()
+    checkpoint_path = PROJECT_ROOT / (checkpoint["snapshot"].replace("../", ""))
+    logging.debug("Loading from {}".format(str(checkpoint_path)))
+    print(get_available_gpus(6, "gb"))
+    available_gpus = get_available_gpus(6, "gb")
+    # if len(available_gpus) == 0:
+    net.load_state_dict(torch.load(str(checkpoint_path), map_location=torch.device("cpu")))
+    # else:
+    #     net.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(available_gpus[0])))
+    if use_gpu:
+        net.cuda()
+    else:
+        net.cpu()
     net.eval()
     return net
 

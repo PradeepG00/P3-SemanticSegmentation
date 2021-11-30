@@ -18,8 +18,9 @@ from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
+from utils import check_mkdir
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
+from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
 from utils.data.visual import get_visualize, colorize_mask
 from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
@@ -114,8 +115,8 @@ def random_seed(seed_value: int, use_cuda=True):
 
 def train_rx101():
     try:
-        prepare_gt(VAL_ROOT)
-        prepare_gt(TRAIN_ROOT)
+        prepare_gt(VAL_DIR)
+        prepare_gt(TRAIN_DIR)
         random_seed(train_args.seeds)
         train_args.write2txt()
         net = get_model(
@@ -423,9 +424,9 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
     return val_visual
 
 
-def check_mkdir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+# def check_mkdir(dir_name):
+#     if not os.path.exists(dir_name):
+#         os.mkdir(dir_name)
 
 
 if __name__ == "__main__":

@@ -6,15 +6,16 @@ import torch
 import yaml
 from pathlib import Path
 
+from utils import check_mkdir
 from utils.data.dataset import AgricultureDataset
 from utils.data.preprocess import LAND_CLASSES, PALETTE_VIZ, split_train_val_test_sets
 
 # change DATASET ROOT to your dataset path
-DATASET_ROOT = "/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021"
+# DATASET_ROOT = Path("/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021")
 
-TRAIN_ROOT = os.path.join(DATASET_ROOT, "train")
-VAL_ROOT = os.path.join(DATASET_ROOT, "val")
-TEST_ROOT = os.path.join(DATASET_ROOT, "test/images")
+# TRAIN_ROOT = os.path.join(DATASET_ROOT, "train")
+# VAL_ROOT = os.path.join(DATASET_ROOT, "val")
+# TEST_ROOT = os.path.join(DATASET_ROOT, "test/images")
 
 
 class AgricultureConfiguration(object):
@@ -252,9 +253,9 @@ z
                 file.write(line + "\n")
 
 
-def check_mkdir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+# def check_mkdir(dir_name):
+#     if not os.path.exists(dir_name):
+#         os.mkdir(dir_name)
 
 
 if __name__ == "__main__":
@@ -283,3 +284,5 @@ if __name__ == "__main__":
     with open("../data/config.json", "w") as fh:
         json.dump(config, fh, indent=4)
     pass
+
+

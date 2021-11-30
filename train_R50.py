@@ -5,8 +5,9 @@ from __future__ import unicode_literals
 
 # TODO: figure out the system for training given the config of the text file which
 #  specifies a .pth checkpoint to allow for resuming of a certain state of training
+from utils import check_mkdir
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_ROOT, VAL_ROOT
+from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
 from utils.data.visual import colorize_mask, get_visualize
 from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
@@ -143,8 +144,8 @@ def train_rx50():
         print(gpus)
 
         # logging
-        prepare_gt(VAL_ROOT)  # TODO: make configurable in CLI
-        prepare_gt(TRAIN_ROOT)  # TODO: make configurable in CLI
+        prepare_gt(VAL_DIR)  # TODO: make configurable in CLI
+        prepare_gt(TRAIN_DIR)  # TODO: make configurable in CLI
         random_seed(train_args.seeds)
         train_args.write2txt()
         net = get_model(
@@ -525,9 +526,9 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
     return val_visual
 
 
-def check_mkdir(dir_name):
-    if not os.path.exists(dir_name):
-        os.mkdir(dir_name)
+# def check_mkdir(dir_name):
+#     if not os.path.exists(dir_name):
+#         os.mkdir(dir_name)
 
 
 if __name__ == "__main__":

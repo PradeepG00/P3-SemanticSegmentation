@@ -1,5 +1,8 @@
+import logging
 from typing import Tuple
 
+from utils import DEBUG
+from utils.trace.gpu import get_available_gpus
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,6 +37,7 @@ def load_rx50(num_classes: int, model_path: str, node_size: Tuple[int, int] = (3
     :param node_size: Tuple denoting size of nodes
     :return:
     """
+    DEBUG = True
     model = RX50GCN3Head4Channel(out_channels=num_classes, nodes=node_size)
     for param in model.parameters():
         param.requires_grad = False
@@ -48,9 +52,14 @@ def load_rx50(num_classes: int, model_path: str, node_size: Tuple[int, int] = (3
     model.scg.logvar[0] = nn.Conv2d(
         1024, num_classes, kernel_size=(1, 1), stride=(1, 1)
     )
+
+    if DEBUG:
+        logging.debug("Loading from")
+        print(get_available_gpus(6, "gb"))
     model.load_state_dict(
         torch.load(model_path, map_location=torch.device("cpu")), strict=False
     )
+    # torch.device("gpu")
     model.eval()
     return model
 
@@ -140,12 +149,19 @@ class RX50GCN3Head4Channel(nn.Module):
 
     def forward(self, x):
         x_size = x.size()
-        print(x_size)
-        print(list(self.layer0.children()))
+        if DEBUG: print("\nRX50GCN3Head4Channel Input Size:", x_size)
+        # print(list(self.layer0.children()))
 
         # 3-hops denoting power in which 8 pixels are adjacent to a center
         # node of the window
-        gx = self.layer3(self.layer2(self.layer1(self.layer0(x))))
+        # first 3 bottleneck layers of ResNet
+        gx1 = self.layer0(x)
+        gx2 = self.layer1(gx1)
+        gx3 = self.layer2(gx2)
+        gx = self.layer3(gx3)
+        if DEBUG: print(gx1.shape); print(gx2.shape); print(gx3.shape); print(gx.shape); print("Completed first 3 Bottleneck Layers of ResNet")
+
+
         gx90 = gx.permute(0, 1, 3, 2)
         gx180 = gx.flip(3)
         B, C, H, W = gx.size()

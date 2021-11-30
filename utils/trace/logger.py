@@ -19,6 +19,7 @@ import datetime
 # consoleHandler = logging.StreamHandler()
 # consoleHandler.setFormatter(logFormatter)
 # rootLogger.addHandler(consoleHandler)
+from utils import PROJECT_ROOT
 
 
 def setup_logger(log_directory: str, model_name: str) -> None:
@@ -35,10 +36,10 @@ def setup_logger(log_directory: str, model_name: str) -> None:
     )
     rootLogger = logging.getLogger()
 
-    log_path = "./logs/{0}/{1}.log".format(
+    log_path = PROJECT_ROOT / "logs/{0}/{1}.log".format(
         f"/{model_name}", f"{model_name}-{datetime.datetime.now():%d-%b-%y-%H:%M:%S}"
     )
-    log_dir = f"./logs/{model_name}"
+    log_dir = PROJECT_ROOT / f"logs/{model_name}"
     if os.path.exists(log_dir):
         print("Saving log files to:", log_dir)
     else:
