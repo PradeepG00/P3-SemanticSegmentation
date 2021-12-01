@@ -2,7 +2,6 @@ import cv2
 import random
 import numpy as np
 import torch
-from torch import functional as F
 from torch import Tensor
 from PIL import Image, ImageEnhance
 from albumentations import (
