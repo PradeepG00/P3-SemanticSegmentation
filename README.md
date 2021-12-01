@@ -146,8 +146,6 @@ base_optimizer = optim.SGD(params, momentum=train_args.momentum, nesterov=True)
 ## Test with a single GPU
 
 ```
-# To reproduce the leaderboard results (0.608), download the trained-weights checkpoint1,2,3
-# and save them with the original names into ./checkpoint folder before run test_submission.py
 CUDA_VISIBLE_DEVICES=0 python ./tools/test_submission.py
 ```
 
@@ -157,7 +155,10 @@ CUDA_VISIBLE_DEVICES=0 python ./tools/test_submission.py
 , [checkpoint2](https://drive.google.com/open?id=1vOlS4LfHGnWIUpqTFB2a07ndlpBxFmVE)
 , [checkpoint3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
 
-## Results Summary
+## 2021 Results Summary
+
+
+## 2020 Results Summary
 
 | Models                              | mIoU (%)        | Background      | Cloud shadow    | Double plant    | Planter skip    | Standing water  | Waterway        | Weed cluster    |
 | ----------------------------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- | --------------- |
