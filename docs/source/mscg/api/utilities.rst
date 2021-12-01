@@ -2,38 +2,47 @@
 Utilities
 =====================================
 
-Checkpoint
--------------
-Hello world
-Hello world
-Hello world
+.. automodule:: utils.__init__
+   :members:
+   :special-members: __init__, __name__
 
+
+Tracing
+=====================================
+
+Utility functions for model debugging, setup and loading
+
+**Checkpoint**
+---------------
 .. automodule:: utils.trace.checkpoint
    :members:
 
-Loss
+**GPU**
+---------------
+.. automodule:: utils.trace.gpu
+   :members:
+
+**Logger**
+---------------
+.. automodule:: utils.trace.logger
+   :members:
+
+Metrics
 -------------
+
+**Loss**
+----------
 .. automodule:: utils.metrics.loss
    :members:
    :special-members: __init__, __name__
 
-Configuration
--------------
-.. automodule:: utils.config
-   :members:
-
-Logger
--------------
-.. automodule:: utils.trace.logger
-   :members:
-
-Optimizer
--------------
+**Optimizer**
+--------------------------
 .. automodule:: utils.metrics.optimizer
    :members:
 
-Learning Rate
--------------
+**Learning Rate**
+--------------------------
 .. automodule:: utils.metrics.lr
    :members:
 
@@ -47,5 +56,18 @@ Visual
 .. automodule:: utils.data.visual
    :members:
 
+Mobile Conversion
+====================
 
+**Android**
+-------------
+.. automodule:: utils.export.android
+   :members:
+
+
+Configuration
+-------------
+.. automodule:: utils.config
+   :members:
+   :special-members: __init__, __name__
 
