@@ -156,5 +156,6 @@ tags
 *.ptl
 
 # MSCG Training Artifacts
-checkpoints/*
+checkpoints/adam/*
+checkpoints/sgd/*
 submission/*
