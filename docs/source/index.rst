@@ -21,10 +21,6 @@ screenshots, and finally comments/critiques.
 
 
 
-
-
-
-
 Development
 ==================
 
@@ -58,9 +54,9 @@ Development
     :maxdepth: 2
     :hidden:
 
-    mscg/cli/cli_overview
+    mscg/cli/overview
     mscg/cli/installation
-    mscg/cli/cli_usage
+    mscg/cli/usage
 
 
 .. toctree::
@@ -74,7 +70,15 @@ Development
     mscg/api/preprocessing
     mscg/api/models
     mscg/api/utilities
-    mscg/api/tables
+
+.. toctree::
+    :caption: Results
+    :maxdepth: 2
+    :titlesonly:
+    :hidden:
+
+    results/tables/2021
+    results/tables/2020
 
 
 

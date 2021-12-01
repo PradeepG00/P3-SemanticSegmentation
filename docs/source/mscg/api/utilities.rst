@@ -51,17 +51,19 @@ Validate
 .. automodule:: utils.metrics.validate
    :members:
 
-Visual
--------------
-.. automodule:: utils.data.visual
-   :members:
 
-Mobile Conversion
+
+Export
 ====================
 
 **Android**
 -------------
 .. automodule:: utils.export.android
+   :members:
+
+**Visualizations**
+-------------
+.. automodule:: utils.export.visualization
    :members:
 
 
