@@ -62,7 +62,7 @@ pip install -e .  # install mscg-core as a package which resolves the issue of p
 __NOTE__ the current implementation has been hardcoded to support
 the [2021 dataset](https://www.agriculture-vision.com/agriculture-vision-2021/dataset-2021)
 
-1. Change `DATASET_ROOT` to your dataset path in `./data/AgricultureVision/pre_process.py`
+1. Change `DATASET_ROOT` to your dataset path in `../project_root/util/data/__init__.py`
 
 ```
 DATASET_ROOT = '/your/path/to/Agriculture-Vision'
@@ -156,7 +156,7 @@ CUDA_VISIBLE_DEVICES=0 python ./tools/test_submission.py
 , [checkpoint3](https://drive.google.com/open?id=1nEPjnTlcrzx0FOH__MbP3e_f9PlhjMa2)
 
 ## 2021 Results Summary
-
+To be added 
 
 ## 2020 Results Summary
 
