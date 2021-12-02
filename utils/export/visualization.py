@@ -343,8 +343,7 @@ def run_visualization_demo(
         ax[i, 1].imshow(pred_colored, interpolation='nearest')
         i += 1
 
-
-if __name__ == "__main__":
+def run_multiprocessing_lut2rgb():
     pass
     #
     test_path_dict = get_real_test_list(bands=["NIR", "RGB"])  # ../test/images/rgb/{}.jpg
@@ -379,22 +378,6 @@ if __name__ == "__main__":
             print(os.listdir(od))
         print("===================")
 
-    # print(os.path.exists(input_paths[0]))
-    # print(len(input_paths) == len(pred_paths) == len(pred_ids))
-
-    # single process and write
-    # apply_color_and_save(
-    #     sema=None,
-    #     input_data,
-    #     pred_data,
-    #     COLOR_PALETTE,
-    #     out_paths_dict,
-    #     False,
-    #     True
-    # )
-
-    #
-    # sys.exit(0)
     p = os.cpu_count()
         # - 4
     # p = 7
@@ -407,3 +390,5 @@ if __name__ == "__main__":
         verbose=True,
         processes=p
     )
+if __name__ == "__main__":
+    run_visualization_demo()
