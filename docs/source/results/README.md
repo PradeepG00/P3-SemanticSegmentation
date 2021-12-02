@@ -1,0 +1,9 @@
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1E3FJWUF1_3911-3514-4423-4026
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1FY8MBG8K_3050-1017-3562-1529
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1FY8MBG8K_3645-665-4157-1177
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1FY8MBG8K_10140-9620-10652-10132
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1KK6Y8UVT_10337-3853-10849-4365
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1KK6Y8UVT_11917-3225-12429-3737
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1KK6Y8UVT_12429-3225-12941-3737
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1NEDW647M_1011-7250-1523-7762
+/home/hanz/github/cs663-p3/android-mscg-net/app/src/main/assets/mscg-samples/1NEDW647M_1020-9073-1532-9585
