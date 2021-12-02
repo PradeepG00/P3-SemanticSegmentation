@@ -20,7 +20,7 @@ from utils.data.augmentation import scale
 from utils.data.dataset import get_real_test_list
 from utils.data.preprocess import MEAN_STD
 # from utils.data import mean_std
-from utils.trace.checkpoint import (
+from utils.export.checkpoint import (
     get_net,
     checkpoint1,
     checkpoint2,
@@ -33,8 +33,11 @@ from utils.trace.checkpoint import (
 # model_name = "ensemble"
 
 
-def main():
+def run_inference_process():
+    # setup directories for storing output files from inference
     check_mkdir(INFERENCE_PATH)
+
+    # load models for inference
     nets = []
     cpath_2 = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/adam/MSCG-Rx101/Agriculture_NIR-RGB_kf-0-0-reproduce/MSCG-Rx101-epoch_20_loss_1.26717_acc_0.78944_acc-cls_0.55146_mean-iu_0.40546_fwavacc_0.66615_f1_0.54439_lr_0.0000946918.pth"
     cpath_1 = "/home/hanz/github/P3-SemanticSegmentation/checkpoints/adam/MSCG-Rx50/Agriculture_NIR-RGB_kf-0-0-reproduce_ACW_loss2_adax/MSCG-Rx50-epoch_33_loss_1.08814_acc_0.79293_acc-cls_0.59024_mean-iu_0.41186_fwavacc_0.67505_f1_0.55180_lr_0.0000372098.pth"
@@ -58,15 +61,15 @@ def main():
     # net1.cuda(0)
     # net2.cuda(0)
     # print(net2.eval())
-
     nets.append(net1)
     nets.append(net2)
     # nets.append(net3)
 
     # checkpoint1 + checkpoint2, test score 0.599,
     # checkpoint1 + checkpoint2 + checkpoint3, test score 0.608
-
     test_files = get_real_test_list(bands=["NIR", "RGB"])
+
+    # run the test time augmentation process ie inference using the ensemble
     run_tta_real_test(
         nets,
         stride=600,
@@ -324,10 +327,12 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_siz
 
     .. math::
 
-        (\\hat{y}+Z^{(2)})
+        (\\hat{y}+Z^{(2)})\\oplus(\\hat{y}_{90}+Z^{(2)}_{90})_{\\text{r}90}
+        \\oplus(
+            \\hat{y}_{180}+Z^{(2)}_{180})_{\\text{r}180})
 
     1. Extraction of patches defining the pertaining to the sliding window
-    2. Reversal of rotations
+    2. Reversal of the rotations (90/180 degrees)
     3. Projection to 2D-space
 
     :param use_gpu:
@@ -486,17 +491,17 @@ def inference(img: np.array, boundaries, masks,
               # use_gpu: bool = False,
               all: bool = True
               ):
-    """
-
-    :param img: input NumPy array image of shape (512,512,4)
-    :param model_paths:
-    :param num_class:
-    :param window_size:
-    :param batch_size:
-    :param models_selected:
-    :param use_gpu:
-    :return:
-    """
+    # """
+    # TODO: breaking function
+    # :param img: input NumPy array image of shape (512,512,4)
+    # :param model_paths:
+    # :param num_class:
+    # :param window_size:
+    # :param batch_size:
+    # :param models_selected:
+    # :param use_gpu:
+    # :return:
+    # """
     assert models_selected.lower() in ["all", "rx50", "rx101", "both"]
     # print(labels, norm, stride, batch_size, window_size)
     # Setup data generators
@@ -618,6 +623,7 @@ def inference(img: np.array, boundaries, masks,
 def preprocess_for_inference(img: np.array, norm: bool = True,
                              # use_gpu: bool=False
                              ):
+    # TODO: breaking, attempts to preprocess an input
     # Preprocess: standardize, normalize, transpose
     # org_img = img.copy()  # for visualization
     print("Start preprocessing...")
@@ -645,4 +651,4 @@ def preprocess_for_inference(img: np.array, norm: bool = True,
 
 
 if __name__ == "__main__":
-    main()
+    run_inference_process()
