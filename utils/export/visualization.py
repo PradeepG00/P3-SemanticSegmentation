@@ -3,20 +3,17 @@ import glob
 import multiprocessing
 import multiprocessing as mp
 import os.path
-import sys
-import time
 from pathlib import Path
 from typing import List, Tuple
 
-import cv2
 import numpy as np
+import torchvision.transforms as standard_transforms
 import tqdm
 from PIL import Image
-import torchvision.transforms as standard_transforms
 from numpy import ndarray
 
 from utils import PROJECT_ROOT
-from utils.data import COLOR_PALETTE, DATASET_ROOT
+from utils.data import COLOR_PALETTE
 from utils.data.dataset import get_real_test_list
 
 
@@ -93,8 +90,6 @@ def multiprocess_visuals(
     # pool = mp.Pool(processes)
     # sema = mp.Semaphore(processes)
     procs = []
-    import psutil
-    import subprocess as sp
 
     # create and start processes
     for idx, input_data, pred_data in tqdm.tqdm(in_pred_pil_gen):
@@ -315,7 +310,6 @@ def run_visualization_demo(
             os.mkdir(Path(out_dir) / id)
 
     import matplotlib.pyplot as plt
-    from matplotlib.pyplot import figure
 
     # input_paths = glob.glob(str(Path(DATASET_ROOT) / "test" / "images" / "rgb" / "*.jpg"))
     prediction_paths = glob.glob(str(Path(PROJECT_ROOT) / "submission" / "results" / "*.png"))
@@ -325,7 +319,8 @@ def run_visualization_demo(
     #     input_paths=input_paths, prediction_paths=prediction_paths
     # )
     ROWS = 4
-    f, ax = plt.subplots(ROWS, 2)
+    f, ax = plt.subplots(ROWS, 2, figsize=(8,12))
+    # f.set_size_inches()
     # plt.rcParams["figure.figsize"] = (20, 3)
     i = 0
     for idx, in_arr, pred_arr in im_pred_pil_gen:

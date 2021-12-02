@@ -4,42 +4,27 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 # from memory_profiler import profile
-import datetime
 import logging
 import os.path
-import random
-from abc import ABC, ABCMeta, abstractmethod
-import sys
-import time
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
-import torch.cuda
-import torchvision.utils as vutils
-import tqdm
 from tensorboardX import SummaryWriter
-from torch import optim
 from torch.backends import cudnn
-from torch.utils.data import DataLoader
 
 # from utils import get_available_gpus
 # from utils import init_params_lr
-from core.net import get_model
 
 #####################################
 # Setup Logging
 #####################################
 # import logging
-from utils.trace.logger import setup_logger
+from utils.logger import setup_logger
 
 # TODO: figure out the system for trzaining given the config of the text file which specifies a .pth checkpoint to allow for resuming of a certain state of training
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
-from utils.data.visual import colorize_mask, get_visualize
-from utils.metrics.loss import ACWLoss
-from utils.metrics.lr import init_params_lr
-from utils.metrics.optimizer import Lookahead
-from utils.metrics.validate import evaluate, AverageMeter
-from utils.trace.gpu import get_available_gpus
+from utils.data.preprocess import prepare_ground_truth
+from utils.export.visualization import get_visualize
 
 
 class TrainingProcess(metaclass=ABCMeta):
@@ -118,13 +103,13 @@ class TrainingProcess(metaclass=ABCMeta):
 
     @staticmethod
     def create_ground_truths(self, validation_dir, train_dir) -> None:
-        prepare_gt(validation_dir)
-        prepare_gt(train_dir)
+        prepare_ground_truth(validation_dir)
+        prepare_ground_truth(train_dir)
 
     @staticmethod
     def reset_ground_truths(self, validation_dir, train_dir) -> None:
-        prepare_gt(validation_dir)
-        prepare_gt(train_dir)
+        prepare_ground_truth(validation_dir)
+        prepare_ground_truth(train_dir)
 
     @abstractmethod
     @staticmethod

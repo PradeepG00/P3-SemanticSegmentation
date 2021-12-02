@@ -3,10 +3,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import glob
 import logging
 import os
-from pathlib import Path
 from turtle import st
 from typing import Tuple
 
@@ -16,7 +14,7 @@ from numpy import ndarray
 from sklearn.model_selection import KFold
 
 from utils import check_mkdir, img_basename
-from utils.data import TRAIN_DIR, VAL_DIR, TEST_IMAGES_DIR, DATA_PATH_DICT, IDS, GT, LABELS_FOLDER, IMG
+from utils.data import TRAIN_DIR, VAL_DIR, DATA_PATH_DICT, IDS, GT, LABELS_FOLDER, IMG
 from utils.data.augmentation import img_load
 
 MEAN_STD = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
