@@ -8,6 +8,6 @@ Preprocessing
 .. automodule:: utils.data.dataset
    :members:
 
-.. automodule:: utils.data.augmentations
+.. automodule:: utils.data.augmentation
    :members:
 
