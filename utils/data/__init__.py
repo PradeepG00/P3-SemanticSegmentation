@@ -29,20 +29,35 @@ PALETTE_LAND = {
     8: (128, 0, 128),  # `nutrient_deficiency`
     9: (255, 0, 0),  # `storm_damage`
 }
+"""RGB Format for coloring when writing to file
+"""
 
 # customised palette for visualization, easier for reading in paper
 COLOR_PALETTE = {
-    0: (0, 0, 0,),  # `background`
-    1: (0, 255, 0),  # `water`
-    2: (255, 0, 0),  # double_plant
-    3: (0, 200, 200),  # planter_skip
-    4: (255, 255, 255),  # `drydown`
-    5: (128, 128, 0),  # waterway
-    6: (0, 0, 255),  # weed_cluster
-    7: (0, 128, 255),  # `endrow`
+    # 0: (0, 0, 0,),  # `background`
+    # 1: (0, 255, 0),  # `water`
+    # 2: (255, 0, 0),  # double_plant
+    # 3: (0, 200, 200),  # planter_skip
+    # 4: (255, 255, 255),  # `drydown`
+    # 5: (128, 128, 0),  # waterway
+    # 6: (0, 0, 255),  # weed_cluster
+    # 7: (0, 128, 255),  # `endrow`
+    # 8: (128, 0, 128),  # `nutrient_deficiency`
+    # 9: (128, 255, 128),  # `storm_damage`
+
+    0: (0, 0, 0),  # `background`
+    1: (255, 255, 0),  # `water`
+    2: (255, 0, 255),  # double_plant
+    3: (0, 255, 0),  # planter_skip
+    4: (0, 0, 255),  # `drydown`
+    5: (255, 255, 255),  # waterway
+    6: (0, 255, 255),  # weed_cluster
+    7: (0, 128, 255),  # `endrow
     8: (128, 0, 128),  # `nutrient_deficiency`
-    9: (128, 255, 128),  # `storm_damage`
+    9: (255, 0, 0),  # `storm_damage`
 }
+"""RGB Format for coloring when writing to file
+"""
 
 # Mapping of label folders to palette
 LABELS_FOLDER = {
