@@ -15,7 +15,6 @@ from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
 from utils.metrics.optimizer import Lookahead
 from utils.metrics.validate import evaluate, AverageMeter
-from utils.trace.gpu import get_available_gpus
 # from memory_profiler import profile
 
 import datetime
@@ -30,7 +29,7 @@ import torch.cuda
 import torchvision.utils as vutils
 import tqdm
 from tensorboardX import SummaryWriter
-from torch import optim, Tensor
+from torch import optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 

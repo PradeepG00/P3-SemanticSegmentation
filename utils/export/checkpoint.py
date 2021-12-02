@@ -19,7 +19,7 @@ from utils import PROJECT_ROOT
 # Setup Logging
 # TODO: need to eventually cut after refacotirzation
 #####################################
-from utils.trace.gpu import get_available_gpus
+from utils.gpu import get_available_gpus
 
 model_name = "ensemble"
 output_path = PROJECT_ROOT / "submission" / "results_checkpoint1_checkpoint2_tta"

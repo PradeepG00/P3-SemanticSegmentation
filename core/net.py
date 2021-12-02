@@ -1,8 +1,7 @@
-import logging
 from typing import Tuple
 
 from utils import DEBUG
-from utils.trace.gpu import get_available_gpus
+from utils.gpu import get_available_gpus
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
