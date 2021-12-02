@@ -23,3 +23,6 @@ Models
    :members:
    :special-members: __init__, __name__
 
+.. automodule:: core.inference
+   :members:
+

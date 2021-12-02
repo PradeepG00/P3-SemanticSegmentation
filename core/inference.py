@@ -43,10 +43,14 @@ def main():
                    # use_gpu=USE_GPU,
                    checkpoint_path=cpath_1)  # MSCG-Net-R50
     # print(net1.eval())
-    net2 = get_net(checkpoint=checkpoint2,
-                   use_gpu=False,
-                   # use_gpu=USE_GPU,
-                   checkpoint_path=cpath_2)  # MSCG-Net-R101
+    net2 = get_net(
+        checkpoint=checkpoint2,
+        use_gpu=False,
+        # use_gpu=USE_GPU,
+        checkpoint_path=cpath_2
+    )  # MSCG-Net-R101
+    net2.name = "MSCG-Net-R101"
+    net1.name = "MSCG-Net-R50"
     net2.eval()
     net1.eval()
     # net3 = get_net(checkpoint3)  # MSCG-Net-R101
@@ -127,34 +131,37 @@ def run_tta_real_test(
     # step through each sample
     for img, id in tqdm(zip(gen_test_image, gen_ids), total=total_ids, leave=False):
         times_dict[id] = {}
-        # img = preprocess_for_inference(img)
-        # Preprocess: standardize, normalize, transpose
-        # org_img = img.copy()  # for visualization
-        print("Start preprocessing...")
-        print(type(img))
-        print(img.shape)
+        if DEBUG:
+            print("Start preprocessing...")
+            print(type(img))
+            print(img.shape)
         start_time = time.time()  # TIMER
+        # read input as numpy H,W,C
         img = np.asarray(img, dtype="float32")
-        print(type(img))
-        print("--- Start Input NumPy Shape:", img.shape)
+
+        if DEBUG:
+            print(type(img))
+            print("--- Start Input NumPy Shape:", img.shape)
+
+        #  convert to tensor
         img = st.ToTensor()(img)
-        print("Applied convert to", type(img))
-        print("Input Tensor Shape:", img.shape)
-        print(
-            "Input Tensor Shape: {}".format(img.shape))  # DEBUG
+        if DEBUG:
+            print("Applied convert to", type(img))
+            print("Input Tensor Shape:", img.shape)
+            print("Input Tensor Shape: {}".format(img.shape))  # DEBUG
+
+        # apply normalization in tensor format
         img = img / 255.0
-        # if DEBUG:
-        #     print("img / 255 = ", img);
-        # print("img / 255 = ", img)  # DEBUG# DEBUG
         if norm:
             img = st.Normalize(*MEAN_STD)(img)
-            # print(f"normalizing image: {img}")
         img = img.cpu().numpy().transpose(
             (1, 2, 0))  # after applying the necessary transformations we go to 3-dims numpy 512,512,4... why?
-        if DEBUG: print("-- End Post-Transpose as NumPy Size:", img.shape)
-        end_time = time.time()  # TIMER
-        time_delta = end_time - start_time
-        print("Preprocessing time:", time_delta)
+
+        if DEBUG:
+            print("-- End Post-Transpose as NumPy Size:", img.shape)
+            end_time = time.time()  # TIMER
+            time_delta = end_time - start_time
+            print("Preprocessing time:", time_delta)
 
         # times_dict[id]["preprocess"] = time_delta
         # start_time = time.time()
@@ -174,15 +181,17 @@ def run_tta_real_test(
                 window_size=window_size,
             )
         # end_time = time.time()
-        # time_delta = end_time - start_time
-
-        print("inference cost time: ", end_time - start_time)
-        print("inference cost time: {}".format(end_time - start_time))
+        # time_delta = end_timedraw - start_time
+        if DEBUG:
+            print("inference cost time: ", end_time - start_time)
+            print("inference cost time: {}".format(end_time - start_time))
 
         # times_dict[id]["inference"] = time_delta
         # start_time = time.time()
 
         pred = np.argmax(pred, axis=-1)
+        # if DEBUG:
+        print("Prediction shape:", pred.shape)
 
         # bounding box? image segmentation / mask ie a filter that defines
         for key in ["boundaries", "masks"]:
@@ -313,6 +322,10 @@ def grouper(n, iterable):
 def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_size=(512, 512), use_gpu: bool = False):
     """Ensemble method combining the outputs of the SCG-GCN module Rx50 and Rx101 for image segmentation inference
 
+    .. math::
+
+        (\\hat{y}+Z^{(2)})
+
     1. Extraction of patches defining the pertaining to the sliding window
     2. Reversal of rotations
     3. Projection to 2D-space
@@ -326,6 +339,7 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_siz
     :param window_size:
     :return:
     """
+    # initialize an empty tensor 512x512x10 or H x W x Classes
     pred_all = np.zeros(image.shape[:2] + (num_class,))
     print(f"shape of all predictions: {pred_all.shape}, number of classes: {num_class}")
 
@@ -334,6 +348,8 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_siz
         patch_dict = get_kernel_patches(image, scale_rate, num_class, window_size, batch_size)
         img, strides, window_size, total, pred = patch_dict["img"], patch_dict["strides"], patch_dict["win_size"], \
                                                  patch_dict["total"], patch_dict["pred"]
+        # print("prediction pred.shape
+        print(pred.shape)  #
 
         for i, coords in enumerate(
                 # tqdm(
@@ -354,7 +370,10 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_siz
             # not sure if this is... ?
             # looks like the original image... or the copied image
             # thus how many times do we do the grouping...
-            # what is the role of grouper
+            # TODO: what is the role of grouper
+
+            # handle for the 2 other variations to form the
+            # 3-views
             image_patches = [
                 np.copy(img[x: x + w, y: y + h]).transpose((2, 0, 1))
                 for x, y, w, h in coords
@@ -378,16 +397,24 @@ def fusion_prediction(nets, image, scales, batch_size=1, num_class=7, window_siz
                 )  # + Fn.torch_rot270(core(Fn.torch_rot90(image_patches)))
                 # outs = core(image_patches)
                 outs = outs.data.cpu().numpy()
-
+                print(f"Net {net.name} Output shape: {outs.shape}")  # (3, 10, 512, 512)
                 b, _, _, _ = outs.shape
 
                 # Fill in the results array
                 for out, (x, y, w, h) in zip(outs[0: b // 3, :, :, :], coords):
+                    print("Pre-transpose:",
+                          out.shape)  # 3 batches for the 3 tranforms of the input, 10 for classes 512x512 b/c input HxW
                     out = out.transpose((1, 2, 0))
+                    print("Post-transpose:", out.shape)
                     pred[x: x + w, y: y + h] += out
+                    print("Prediction")
+                    print(pred[x: x + w, y: y + h])
 
                 for out, (x, y, w, h) in zip(
-                        outs[b // 3: 2 * b // 3, :, :, :], coords
+                        outs[
+                        b // 3: 2 * b // 3,
+                        :, :, :
+                        ], coords
                 ):
                     out = out[:, ::-1, :]  # flip back
                     out = out.transpose((1, 2, 0))

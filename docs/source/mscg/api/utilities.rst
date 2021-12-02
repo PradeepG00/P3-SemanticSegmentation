@@ -14,17 +14,17 @@ Utility functions for model debugging, setup and loading
 
 **Checkpoint**
 ---------------
-.. automodule:: utils.trace.checkpoint
+.. automodule:: utils.export.checkpoint
    :members:
 
 **GPU**
 ---------------
-.. automodule:: utils.trace.gpu
+.. automodule:: utils.gpu
    :members:
 
 **Logger**
 ---------------
-.. automodule:: utils.trace.logger
+.. automodule:: utils.logger
    :members:
 
 Metrics
