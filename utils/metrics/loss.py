@@ -50,7 +50,7 @@ class ACWLoss(nn.Module):
         pnc = self.pnc(err)
         loss_pnc = torch.sum(acw * pnc, 1)
 
-        intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps
+        intersection = 2 * torch.sum(pred * one_hot_label, dim=(0, 2, 3)) + self.eps # mIoU
         union = pred + one_hot_label
 
         if mask is not None:
@@ -65,8 +65,9 @@ class ACWLoss(nn.Module):
         """Apply positive-negative class balanced function (PNC)
 
         **PNC**
+
         .. math::
-            p = e - \\log(\\frac{1-e}{1+e})\\mid e=(y-\\tilde{y})^2
+            p = e - \\log\\left(\\frac{1-e}{1+e}\\right)\\mid e=(y-\\tilde{y})^2
 
         :param err:
         :return:
@@ -87,7 +88,10 @@ class ACWLoss(nn.Module):
 
         .. math::
 
-            w^t_j=\\frac{\\text{MEDIAN(\\{   f^t_j|j\\in C\\})}}
+            w^t_j=\\frac{
+                \\text{MEDIAN}
+            (\\{ f^t_j | j \\in C \\})
+                }
             {f^t_j+\\epsilon}\\mid\\epsilon=10^{-5}
 
         **Pixel Frequency**

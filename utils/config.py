@@ -3,12 +3,15 @@ import os
 
 import numpy as np
 import torch
-import yaml
+# import yaml
 from pathlib import Path
 
 from utils import check_mkdir
+from utils.data import LAND_CLASSES, COLOR_PALETTE
 from utils.data.dataset import AgricultureDataset
-from utils.data.preprocess import LAND_CLASSES, PALETTE_VIZ, split_train_val_test_sets
+from utils.data.preprocess import split_train_val_test_sets
+
+
 
 # change DATASET ROOT to your dataset path
 # DATASET_ROOT = Path("/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021")
@@ -28,7 +31,7 @@ class AgricultureConfiguration(object):
     loader = AgricultureDataset
     labels = LAND_CLASSES
     nb_classes = len(LAND_CLASSES)
-    palette = PALETTE_VIZ  # palette_vsl
+    palette = COLOR_PALETTE  # palette_vsl
     weights = []
 
     k_folder = 0
@@ -256,33 +259,31 @@ z
 # def check_mkdir(dir_name):
 #     if not os.path.exists(dir_name):
 #         os.mkdir(dir_name)
+# import re
+#     import json
 
+# loader = yaml.SafeLoader
+# loader.add_implicit_resolver(
+#     u"tag:yaml.org,2002:float",
+#     re.compile(
+#         u"""^(?:
+#  [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+# |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+# |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+# |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+# |[-+]?\\.(?:inf|Inf|INF)
+# |\\.(?:nan|NaN|NAN))$""",
+#         re.X,
+#     ),
+#     list(u"-+0123456789."),
+# )
+#
+# with open("../data/config.yml", "r") as fh:
+#     config = yaml.load(fh, Loader=loader)
+#     print(config)
+# with open("../data/config.json", "w") as fh:
+#     json.dump(config, fh, indent=4)
+# pass
 
 if __name__ == "__main__":
-    import re
-    import json
-
-    loader = yaml.SafeLoader
-    loader.add_implicit_resolver(
-        u"tag:yaml.org,2002:float",
-        re.compile(
-            u"""^(?:
-     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-    |[-+]?\\.(?:inf|Inf|INF)
-    |\\.(?:nan|NaN|NAN))$""",
-            re.X,
-        ),
-        list(u"-+0123456789."),
-    )
-
-    with open("../data/config.yml", "r") as fh:
-        config = yaml.load(fh, Loader=loader)
-        print(config)
-    with open("../data/config.json", "w") as fh:
-        json.dump(config, fh, indent=4)
     pass
-
-

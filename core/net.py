@@ -9,6 +9,15 @@ import torch.nn.functional as F
 from pretrainedmodels import se_resnext50_32x4d, se_resnext101_32x4d
 
 
+class MSCGNet:
+    @staticmethod
+    def load_model(model_name: str):
+        pass
+
+    def get_model(model_name: str):
+        pass
+
+
 # TODO: add data parallelization
 def load_rx50(num_classes: int, model_path: str, node_size: Tuple[int, int] = (32, 32)) -> nn.Module:
     """
@@ -54,7 +63,7 @@ def load_rx50(num_classes: int, model_path: str, node_size: Tuple[int, int] = (3
     )
 
     if DEBUG:
-        logging.debug("Loading from")
+        print("Loading from")
         print(get_available_gpus(6, "gb"))
     model.load_state_dict(
         torch.load(model_path, map_location=torch.device("cpu")), strict=False
@@ -159,8 +168,8 @@ class RX50GCN3Head4Channel(nn.Module):
         gx2 = self.layer1(gx1)
         gx3 = self.layer2(gx2)
         gx = self.layer3(gx3)
-        if DEBUG: print(gx1.shape); print(gx2.shape); print(gx3.shape); print(gx.shape); print("Completed first 3 Bottleneck Layers of ResNet")
-
+        if DEBUG: print(gx1.shape); print(gx2.shape); print(gx3.shape); print(gx.shape); print(
+            "Completed first 3 Bottleneck Layers of ResNet")
 
         gx90 = gx.permute(0, 1, 3, 2)
         gx180 = gx.flip(3)

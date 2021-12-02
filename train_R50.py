@@ -5,10 +5,12 @@ from __future__ import unicode_literals
 
 # TODO: figure out the system for training given the config of the text file which
 #  specifies a .pth checkpoint to allow for resuming of a certain state of training
+from typing import List
+
 from utils import check_mkdir
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
-from utils.data.visual import colorize_mask, get_visualize
+from utils.data.preprocess import prepare_ground_truth, TRAIN_DIR, VAL_DIR
+from utils.export.visualization import colorize_mask, get_visualize
 from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
 from utils.metrics.optimizer import Lookahead
@@ -28,7 +30,7 @@ import torch.cuda
 import torchvision.utils as vutils
 import tqdm
 from tensorboardX import SummaryWriter
-from torch import optim
+from torch import optim, Tensor
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 
@@ -140,12 +142,12 @@ def train_rx50():
     try:
         setup_logging(model_name=model_name)
         # DEBUG gpu selection TODO: need to allow for specification of gpu when training
-        gpus = get_available_gpus(100, "mb")
-        print(gpus)
+        # gpus = get_available_gpus(100, "mb")
+        # print(gpus)
 
         # logging
-        prepare_gt(VAL_DIR)  # TODO: make configurable in CLI
-        prepare_gt(TRAIN_DIR)  # TODO: make configurable in CLI
+        prepare_ground_truth(VAL_DIR)  # TODO: make configurable in CLI
+        prepare_ground_truth(TRAIN_DIR)  # TODO: make configurable in CLI
         random_seed(train_args.seeds)
         train_args.write2txt()
         net = get_model(
@@ -215,7 +217,8 @@ def train_rx50():
         )
 
         # loop for the specific epochs for training
-        new_ep = 12
+        # new_ep = 12
+        new_ep = 0
         print(checkpoint_path is not None and new_ep > 0)
         if checkpoint_path is not None and new_ep > 0:
             logging.debug(
@@ -252,13 +255,13 @@ def train_rx50():
             for i, (inputs, labels) in enumerate(train_loader):
                 sys.stdout.flush()
 
+                # iterate for a training session
                 # TODO: make GPU vs CPU configurable in CLI
                 inputs, labels = (
                     inputs.cuda(),
                     labels.cuda(),
                 )
                 N = inputs.size(0) * inputs.size(2) * inputs.size(3)
-                # print(inputs.shape) # DEBUG TODO: check for recreating in notebook for MVP desktop deployment
                 optimizer.zero_grad()
                 outputs, cost = net(inputs)
 
@@ -273,6 +276,8 @@ def train_rx50():
                 aux_train_loss.update(cost.item(), inputs.size(0))
 
                 curr_iter += 1
+
+                # update tensorboard
                 writer.add_scalar("main_loss", train_main_loss.avg, curr_iter)
                 writer.add_scalar("aux_loss", aux_train_loss.avg, curr_iter)
                 # writer.add_scalar('cls_loss', cls_trian_loss.avg, curr_iter)
@@ -389,7 +394,7 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
         net, optimizer, epoch, new_ep, val_loss, inputs_all, gts_all, predictions_all
     )
 
-    net.train()  #
+    net.train()  # enable model training
     return (
         val_loss,
         inputs_all,
@@ -401,8 +406,10 @@ def validate(net, val_set, val_loader, criterion, optimizer, epoch, new_ep):
 def update_checkpoint(
         net, optimizer, epoch, new_ep, val_loss, inputs_all, gts_all, predictions_all
 ):
-    """TODO: needs refactor to find the acc, acc_clr, mean_iu, fwavacc, f1 on a single instance instead of on the collection which is
-    RAM intensive
+    """Primary function that checkpoints a models and writes its results to TensorBoard
+
+    TODO: needs refactor to find the acc, acc_clr, mean_iu, fwavacc, f1 on a single instance instead of on the collection which is
+        RAM intensive
 
     :param net:
     :param optimizer:
@@ -421,6 +428,7 @@ def update_checkpoint(
         predictions_all, gts_all, train_args.nb_classes
     )
 
+    # update tensorboard
     writer.add_scalar("val_loss", avg_loss, epoch)
     writer.add_scalar("acc", acc, epoch)
     writer.add_scalar("acc_cls", acc_cls, epoch)
@@ -469,7 +477,7 @@ def update_checkpoint(
             net.state_dict(), os.path.join(train_args.save_path, snapshot_name + ".pth")
         )
 
-        # train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
+        train_args.update_best_record(epoch, val_loss.avg, acc, acc_cls, mean_iu, fwavacc, f1)
 
     # frequency of predictions saving
     if train_args.save_pred:
@@ -481,10 +489,21 @@ def update_checkpoint(
     if len(val_visual) > 0:
         val_visual = torch.stack(val_visual, 0)
         val_visual = vutils.make_grid(val_visual, nrow=3, padding=5)
-        writer.add_image(snapshot_name, val_visual)
+        writer.add_image(snapshot_name, val_visual)  # write to tensorboard
 
 
-def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
+def visual_checkpoint(epoch: int, new_ep: int, inputs_all: List[np.ndarray], gts_all: List[np.ndarray],
+                      predictions_all: List[np.ndarray]) -> List:
+    """Function for handling coloring of ground-truths and predictions during model
+    checkpointing in the training process
+
+    :param epoch:
+    :param new_ep:
+    :param inputs_all:
+    :param gts_all:
+    :param predictions_all:
+    :return:
+    """
     val_visual = []
     if train_args.save_pred:
         to_save_dir = os.path.join(train_args.save_path, str(epoch) + "_" + str(new_ep))
@@ -516,6 +535,7 @@ def visual_checkpoint(epoch, new_ep, inputs_all, gts_all, predictions_all):
             predictions_pil.save(os.path.join(to_save_dir, "%d_prediction.png" % idx))
             gt_pil.save(os.path.join(to_save_dir, "%d_gt.png" % idx))
 
+        # collect visuals
         val_visual.extend(
             [
                 visualize(input_pil.convert("RGB")),

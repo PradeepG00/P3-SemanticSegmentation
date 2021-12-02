@@ -65,12 +65,12 @@ def lr_cos(base_lr, iteration, max_iterations):
 
 
 def adjust_initial_rate(optimizer, i_iter, opt, model="cos"):
-    """
+    """Function for adjusting scheduling learning rate in accordance to a specified model with the provided optimizer
 
     :param optimizer:
     :param i_iter:
     :param opt:
-    :param model:
+    :param model: "cos" denotes cosine annealing to reduce lr over epochs
     :return:
     """
     # lr = lr_poly(opt.lr, i_iter, opt.max_iter, opt.lr_decay)

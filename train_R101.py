@@ -20,8 +20,8 @@ from torch.utils.data import DataLoader
 
 from utils import check_mkdir
 from utils.config import AgricultureConfiguration
-from utils.data.preprocess import prepare_gt, TRAIN_DIR, VAL_DIR
-from utils.data.visual import get_visualize, colorize_mask
+from utils.data.preprocess import prepare_ground_truth, TRAIN_DIR, VAL_DIR
+from utils.export.visualization import get_visualize, colorize_mask
 from utils.metrics.loss import ACWLoss
 from utils.metrics.lr import init_params_lr
 from core.net import get_model
@@ -115,8 +115,8 @@ def random_seed(seed_value: int, use_cuda=True):
 
 def train_rx101():
     try:
-        prepare_gt(VAL_DIR)
-        prepare_gt(TRAIN_DIR)
+        prepare_ground_truth(VAL_DIR)
+        prepare_ground_truth(TRAIN_DIR)
         random_seed(train_args.seeds)
         train_args.write2txt()
         net = get_model(

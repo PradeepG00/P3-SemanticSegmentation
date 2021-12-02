@@ -6,7 +6,7 @@ import pandas
 import torch.cuda
 
 
-def get_gpu_memory_map() -> dict:
+def get_memory_map() -> dict:
     """Get the current gpu usage.
 
     Returns
@@ -41,7 +41,7 @@ def get_available_gpus(memory_threshold: float = 0.0, metric: str = "mb") -> Lis
     print("GPUs using less than {} {}".format(memory_threshold, m))
     # logging.debug("GPUs using less than {}{}".format(memory_threshold, m)) # DEBUG
 
-    gpu_mem_usage = get_gpu_memory_map()
+    gpu_mem_usage = get_memory_map()
     # print(gpu_mem_usage)    # DEBUG
     ids = []
     for gpu_id, metric2mem_dict in gpu_mem_usage.items():
@@ -50,7 +50,7 @@ def get_available_gpus(memory_threshold: float = 0.0, metric: str = "mb") -> Lis
     return ids
 
 
-def get_gpu_stats() -> pandas.DataFrame:
+def get_stats() -> pandas.DataFrame:
     """Get statistics of all GPUs in a DataFrame
 
     :return:
@@ -81,8 +81,8 @@ def get_gpu_stats() -> pandas.DataFrame:
 #     torch.cuda.get_device_properties()
 
 if __name__ == "__main__":
-    gpu_mem_usage = get_gpu_memory_map()
+    gpu_mem_usage = get_memory_map()
     print(gpu_mem_usage)
     print(get_available_gpus(10000, "mb"))
-    print(get_gpu_stats())
+    print(get_stats())
     print(torch.cuda.device_count())  # returns 1 in my case

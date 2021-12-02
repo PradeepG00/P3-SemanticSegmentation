@@ -14,7 +14,9 @@ setuptools.setup(
     # functions as a search for the name of the package defined in the name variable
     packages=setuptools.find_packages(),
     include_package_data=True,
-    install_requires=["Click", "PyTorch", "NumPy"],
+    install_requires=["Click"
+        # , "PyTorch", "NumPy"
+                      ],
     entry_points="""
     [console_scripts]
     mscgnet=cli.main:cli

@@ -1,4 +1,6 @@
+import glob
 import os
+from pathlib import Path
 from typing import Tuple
 
 import cv2
@@ -9,9 +11,10 @@ from torch.utils.data import Dataset
 import torchvision.transforms as standard_transforms
 
 # from utils.config import DATASET_ROOT
-from . import DATASET_ROOT
-from utils.data.augmentations import img_load, img_mask_crop
+from . import DATASET_ROOT, TEST_IMAGES_DIR, DATA_PATH_DICT, IDS
+from utils.data.augmentation import img_load, img_mask_crop
 from utils.data.preprocess import IMG, GT
+from .. import img_basename
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -21,16 +24,60 @@ class AgricultureDataset(Dataset):
     def __init__(
             self,
             mode="train",
-            file_lists=None,
+            filepath_dict=None,
             win_size=(256, 256),  #
             num_samples=10000,
             pre_norm=False,
             scale=1.0 / 1.0,
     ):
-        """
+        """Class serving as the main interface for data interactions
+
+        .. code-block:: text
+
+            .
+            ├── test
+            │   ├── boundaries
+            │   ├── images
+            │   │   ├── nir
+            │   │   └── rgb
+            │   └── masks
+            ├── train
+            │   ├── boundaries
+            │   ├── gt          # generated using preprocess.py
+            │   ├── images
+            │   │   ├── nir
+            │   │   └── rgb
+            │   ├── labels
+            │   │   ├── double_plant
+            │   │   ├── drydown
+            │   │   ├── endrow
+            │   │   ├── nutrient_deficiency
+            │   │   ├── planter_skip
+            │   │   ├── storm_damage
+            │   │   ├── water
+            │   │   ├── waterway
+            │   │   └── weed_cluster
+            │   └── masks
+            └── val
+                ├── boundaries
+                ├── gt              # generated using preprocess.py
+                ├── images
+                │   ├── nir
+                │   └── rgb
+                ├── labels
+                │   ├── double_plant
+                │   ├── drydown
+                │   ├── endrow
+                │   ├── nutrient_deficiency
+                │   ├── planter_skip
+                │   ├── storm_damage
+                │   ├── water
+                │   ├── waterway
+                │   └── weed_cluster
+                └── masks
 
         :param mode:
-        :param file_lists:
+        :param filepath_dict:
         :param win_size:
         :param num_samples:
         :param pre_norm:
@@ -42,9 +89,9 @@ class AgricultureDataset(Dataset):
         self.win_size = win_size
         self.samples = num_samples
         self.scale = scale
-        self.all_ids = file_lists["all_files"]
-        self.image_files = file_lists[IMG]  # image_files = [[bands1, bands2,..], ...]
-        self.mask_files = file_lists[GT]  # mask_files = [gt1, gt2, ...]
+        self.all_ids = filepath_dict["all_files"]
+        self.image_files = filepath_dict[IMG]  # image_files = [[bands1, bands2,..], ...]
+        self.mask_files = filepath_dict[GT]  # mask_files = [gt1, gt2, ...]
 
     def __len__(self):
         return len(self.all_ids)
@@ -52,6 +99,7 @@ class AgricultureDataset(Dataset):
     def __getitem__(self, idx):
 
         if len(self.image_files) > 1:
+            # collect NIR and RGB to form 4D input image
             imgs = []
             for k in range(len(self.image_files[idx])):
                 filename = self.image_files[idx][k]
@@ -71,7 +119,7 @@ class AgricultureDataset(Dataset):
             path, _ = os.path.split(filename)
             if path[-3:] == "nir":
                 image = img_load(filename, gray=True, scale_rate=self.scale)
-                image = np.expand_dims(image, 2)
+                image = np.expand_dims(image, 2)  # (H,W) -> (H,W,C)
             else:
                 image = img_load(filename, scale_rate=self.scale)
 
@@ -82,11 +130,13 @@ class AgricultureDataset(Dataset):
                 image=image, mask=label, size=self.win_size, limits=self.win_size
             )
 
+        # process
         if self.mode == "train":
             image_p, label_p = self.train_augmentation(image, label)
         elif self.mode == "val":
             image_p, label_p = self.val_augmentation(image, label)
 
+        # preprocess with numpy tranposing of array to get (512,512,4)
         image_p = np.asarray(image_p, np.float32).transpose((2, 0, 1)) / 255.0
         label_p = np.asarray(label_p, dtype="int64")
 
@@ -234,3 +284,62 @@ class AgricultureDataset2021(AgricultureDataset):
         IMG = "images"  # RGB or IRRG, rgb/nir
         GT = "gt"
         IDS = "IDs"
+
+
+def get_input_entry(
+        data_directory: [
+            Path or str] = "/home/hanz/github/agriculture-vision-datasets/2021/supervised/Agriculture-Vision-2021/test/",
+        entry_id: str = "ZTUK7EGVR_9431-3663-9943-4175") -> dict:
+    """
+    **NOTE** Access Keys:
+        - boundaries
+        - nir
+        - rgb
+        - masks
+
+    :param data_directory:
+    :param entry_id:
+    :return:
+    """
+    # load from file
+    SUB_DIRS = ["boundaries", 'images/nir', 'images/rgb', 'masks']
+    TEST_ROOT = Path(
+        data_directory
+    )
+    ID = entry_id
+    input_entry = {
+    }
+    for sub_dir in SUB_DIRS:
+        try:
+            path = TEST_ROOT / sub_dir / (ID + ".*")
+            files = glob.glob(str(path))
+            if "nir" in sub_dir:
+                input_entry["nir"] = files[0]
+            elif "rgb" in sub_dir:
+                input_entry["rgb"] = files[0]
+            else:
+                input_entry[sub_dir] = files[0]
+            # print(glob.glob(str(path))) # DEBUG
+        except Exception as e:
+            print(e)
+            pass
+    return input_entry
+
+
+def get_real_test_list(
+        root_folder=TEST_IMAGES_DIR, data_folder=DATA_PATH_DICT, name="Agriculture", bands=["RGB"]
+):
+    dict_list = {}
+    basename = [img_basename(f) for f in os.listdir(os.path.join(root_folder, "nir"))]
+    dict_list["all"] = basename
+
+    test_dict = {
+        IDS: dict_list,
+        IMG: [
+            os.path.join(data_folder[name]["ROOT"], "test", data_folder[name][band])
+            for band in bands
+        ],
+        # GT: os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name]['GT'])
+        # IMG: [[img_id.format(id) for img_id in img_ids] for id in test_ids]
+    }
+    return test_dict

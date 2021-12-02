@@ -16,3 +16,11 @@ def check_mkdir(dir_name: str) -> None:
     """
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
+
+
+def img_basename(filename) -> str:
+    return os.path.basename(os.path.splitext(filename)[0])
+
+
+def is_image(filename) -> bool:
+    return any(filename.endswith(ext) for ext in [".png", ".jpg"])

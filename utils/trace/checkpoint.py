@@ -11,7 +11,7 @@ from PIL import Image
 
 # from core.net import *
 from core.net import get_model
-from utils.data.augmentations import img_load
+from utils.data.augmentation import img_load
 from utils.data.preprocess import IDS, GT, IMG
 from utils import PROJECT_ROOT
 
@@ -81,7 +81,7 @@ checkpoint3 = {
 # checkpoint1 + checkpoint2 + checkpoint3, test score 0.608
 
 
-def get_net(checkpoint=checkpoint1, use_gpu: bool = True):
+def get_net(checkpoint_path: str, checkpoint=checkpoint1, use_gpu: bool = True):
     """Function for loading an MSCG-Net from a .pth checkpoint file path
 
     :param checkpoint: Dictionary containing model meta-data for loading from a .pth
@@ -92,6 +92,8 @@ def get_net(checkpoint=checkpoint1, use_gpu: bool = True):
         classes=checkpoint["num_classes"],
         node_size=checkpoint["nodes"],
     )
+    print(checkpoint["num_classes"],
+        checkpoint["nodes"])
 
     checkpoint_path = PROJECT_ROOT / (checkpoint["snapshot"].replace("../", ""))
     logging.debug("Loading from {}".format(str(checkpoint_path)))

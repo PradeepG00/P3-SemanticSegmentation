@@ -3,19 +3,23 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import glob
 import logging
 import os
+from pathlib import Path
+from turtle import st
 from typing import Tuple
 
-import numpy as np
-from sklearn.model_selection import train_test_split, KFold
-
 import cv2
+import numpy as np
+from numpy import ndarray
+from sklearn.model_selection import KFold
 
-from utils import check_mkdir
-from utils.data import TRAIN_DIR, VAL_DIR, TEST_IMAGES_DIR
-from utils.data import DATASET_ROOT
-# from utils.data.dataset import DATASET_ROOT
+from utils import check_mkdir, img_basename
+from utils.data import TRAIN_DIR, VAL_DIR, TEST_IMAGES_DIR, DATA_PATH_DICT, IDS, GT, LABELS_FOLDER, IMG
+from utils.data.augmentation import img_load
+
+MEAN_STD = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
 """
 In the loaded numpy array, only 0-6 integer labels are allowed, and they represent the annotations in the following way:
@@ -29,80 +33,6 @@ In the loaded numpy array, only 0-6 integer labels are allowed, and they represe
 6 - weed_cluster
 
 """
-PALETTE_LAND = {
-    0: (0, 0, 0),  # TODO: unsure if relabel is necessary leaving as `background`
-    1: (255, 255, 0),  # TODO: UPDATED [1] to `water` from `cloud_shadow`
-    2: (255, 0, 255),  # double_plant
-    3: (0, 255, 0),  # planter_skip
-    4: (0, 0, 255),  # TODO: UPDATED [2] to `drydown` from `standing_water`
-    5: (255, 255, 255),  # waterway
-    6: (0, 255, 255),  # weed_cluster
-    7: (0, 128, 255),  # TODO: UPDATED [3] to `endrow` from `cloud_shadow`
-    8: (128, 0, 128),  # TODO: UPDATED [4] to `nutrient_deficiency` from `cloud_shadow`
-    9: (255, 0, 0),  # TODO: UPDATED [5] to `storm_damage` from `cloud_shadow`
-}
-
-# customised palette for visualization, easier for reading in paper
-PALETTE_VIZ = {
-    0: (
-        0,
-        0,
-        0,
-    ),  # TODO:  not sure whether to update or not `background`, labels reflected only 6 / 7
-    1: (0, 255, 0),  # UPDATED [1] to `water`
-    2: (255, 0, 0),  # double_plant
-    3: (0, 200, 200),  # planter_skip
-    4: (255, 255, 255),  # UPDATED [2] to `drydown`
-    5: (128, 128, 0),  # waterway
-    6: (0, 0, 255),  # weed_cluster
-    7: (0, 128, 255),  # UPDATED [3] to `endrow`
-    8: (128, 0, 128),  # UPDATED [4] to `nutrient_deficiency`
-    9: (128, 255, 128),  # UPDATED [5] to `storm_damage`
-}
-
-LABELS_FOLDER = {
-    "water": 1,  # TODO: UPDATED [1] to `water` from `cloud_shadow`
-    "double_plant": 2,
-    "planter_skip": 3,
-    "drydown": 4,  # TODO: UPDATED [2] to `drydown` from `standing_water`
-    "waterway": 5,
-    "weed_cluster": 6,
-    "endrow": 7,
-    "nutrient_deficiency": 8,
-    "storm_damage": 9,
-}
-
-# TODO: likely needs to be updated to reflect the new 9 classes -- include background...?
-# OLD
-# land_classes = ["background", "cloud_shadow", "double_plant", "planter_skip",
-#                 "standing_water", "waterway", "weed_cluster"]
-
-# UPDATED labels: only 6 classes
-LAND_CLASSES = [
-    "background",
-    "water",
-    "double_plant",
-    "planter_skip",
-    "drydown",
-    "waterway",
-    "weed_cluster",
-    "endrow",
-    "nutrient_deficiency",
-    "storm_damage",
-]
-METADATA_DIR_DICT = {
-    "Agriculture": {
-        "ROOT": DATASET_ROOT,
-        "RGB": "images/rgb/{}.jpg",
-        "NIR": "images/nir/{}.jpg",
-        "SHAPE": (512, 512),
-        "GT": "gt/{}.png",
-    },
-}
-
-IMG = "images"  # RGB or IRRG, rgb/nir
-GT = "gt"
-IDS = "IDs"
 
 
 # def check_mkdir(dir_name):
@@ -110,42 +40,79 @@ IDS = "IDs"
 #         os.mkdir(dir_name)
 
 
-def img_basename(filename) -> str:
-    return os.path.basename(os.path.splitext(filename)[0])
+# def img_basename(filename) -> str:
+#     return os.path.basename(os.path.splitext(filename)[0])
+#
+#
+# def is_image(filename) -> bool:
+#     return any(filename.endswith(ext) for ext in [".png", ".jpg"])
 
 
-def is_image(filename) -> bool:
-    return any(filename.endswith(ext) for ext in [".png", ".jpg"])
+def get_processed_masks_and_boundaries(mask_path: str, boundary_path: str) -> tuple[ndarray, ndarray]:
+    """Utility function for loading and applying preprocessing to mask and boundary image array
+    :param paths:
+    :return: tuple[ndarray, ndarray]
+    """
+    masks = np.array(
+        cv2.imread(
+            mask_path, -1, ) / 255,
+        dtype=int,
+    )
+    boundaries = np.array(
+        cv2.imread(
+            boundary_path, -1, ) / 255,
+        dtype=int,
+    )
+    return masks, boundaries
 
 
-def prepare_gt(root_folder=TRAIN_DIR, out_path="gt") -> None:
+def prepare_ground_truth(root_folder=TRAIN_DIR, out_path="gt") -> None:
     """Function for creating ground-truths from a specified directory
 
 
     .. code-block:: text
 
-        # pre-process
-        Agriculture-Vision
-        |-- train       # source directory
-        |   |-- masks
-        |   |-- labels
-        |   |-- boundaries
-        |   |-- images
-        |   |   |-- nir
-        |   |   |-- rgb
-        |   |-- gt      # resulting output directory
-        .   .
-        .   .
-        .   .
-        |-- test
-        |   |-- boundaries
-        |   |-- images
-        |   |   |-- nir
-        |   |   |-- rgb
-        |   |-- masks
         .
-        .
-        .
+        ├── test
+        │   ├── boundaries
+        │   ├── images
+        │   │   ├── nir
+        │   │   └── rgb
+        │   └── masks
+        ├── train
+        │   ├── boundaries
+        │   ├── gt          # generated using preprocess.py
+        │   ├── images
+        │   │   ├── nir
+        │   │   └── rgb
+        │   ├── labels
+        │   │   ├── double_plant
+        │   │   ├── drydown
+        │   │   ├── endrow
+        │   │   ├── nutrient_deficiency
+        │   │   ├── planter_skip
+        │   │   ├── storm_damage
+        │   │   ├── water
+        │   │   ├── waterway
+        │   │   └── weed_cluster
+        │   └── masks
+        └── val
+            ├── boundaries
+            ├── gt              # generated using preprocess.py
+            ├── images
+            │   ├── nir
+            │   └── rgb
+            ├── labels
+            │   ├── double_plant
+            │   ├── drydown
+            │   ├── endrow
+            │   ├── nutrient_deficiency
+            │   ├── planter_skip
+            │   ├── storm_damage
+            │   ├── water
+            │   ├── waterway
+            │   └── weed_cluster
+            └── masks
 
     :param root_folder:
     :param out_path:
@@ -184,7 +151,7 @@ def prepare_gt(root_folder=TRAIN_DIR, out_path="gt") -> None:
             cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def reset_gt(root_folder=TRAIN_DIR, out_path="gt"):
+def reset_ground_truth(root_folder=TRAIN_DIR, out_path="gt"):
     """***BREAKING***
 
     :param root_folder:
@@ -216,17 +183,23 @@ def reset_gt(root_folder=TRAIN_DIR, out_path="gt"):
     #     # cv2.imwrite(os.path.join(root_folder, out_path, gt), gtz)
 
 
-def get_training_list(root_folder=TRAIN_DIR, count_label=True):
+def get_training_list(source=TRAIN_DIR, count_label=True):
+    """
+
+    :param source: directory to containing subdirectories of data
+    :param count_label:
+    :return:
+    """
     dict_list = {}
     basename = [
-        img_basename(f) for f in os.listdir(os.path.join(root_folder, "images/nir"))
+        img_basename(f) for f in os.listdir(os.path.join(source, "images/nir"))
     ]
     if count_label:
         for key in LABELS_FOLDER.keys():
             no_zero_files = []
             for fname in basename:
                 gt = np.array(
-                    cv2.imread(os.path.join(root_folder, "labels", key, fname + ".png"), -1)
+                    cv2.imread(os.path.join(source, "labels", key, fname + ".png"), -1)
                 )
                 if np.count_nonzero(gt):
                     no_zero_files.append(fname)
@@ -238,7 +211,7 @@ def get_training_list(root_folder=TRAIN_DIR, count_label=True):
 
 
 def split_train_val_test_sets(
-        data_folder=METADATA_DIR_DICT,
+        data_folder=DATA_PATH_DICT,
         name="Agriculture",
         bands=["NIR", "RGB"],
         KF=3,
@@ -255,8 +228,8 @@ def split_train_val_test_sets(
     :param seeds:
     :return:
     """
-    train_id, t_list = get_training_list(root_folder=TRAIN_DIR, count_label=False)
-    val_id, v_list = get_training_list(root_folder=VAL_DIR, count_label=False)
+    train_id, t_list = get_training_list(source=TRAIN_DIR, count_label=False)
+    val_id, v_list = get_training_list(source=VAL_DIR, count_label=False)
 
     # create k-folds dataset of folder paths
     if KF >= 2:
@@ -312,20 +285,97 @@ def split_train_val_test_sets(
     return train_dict, val_dict, test_dict
 
 
-def get_real_test_list(
-        root_folder=TEST_IMAGES_DIR, data_folder=METADATA_DIR_DICT, name="Agriculture", bands=["RGB"]
-):
-    dict_list = {}
-    basename = [img_basename(f) for f in os.listdir(os.path.join(root_folder, "nir"))]
-    dict_list["all"] = basename
+def reshape_im_rgb_nir(im_nir, im_rgb):
+    im_nir = np.expand_dims(im_nir, 2)  # expand along the 2 dimension
+    print("new nir", im_nir)
+    print("new nir shape", im_nir.shape)
+    im_4d = [im_nir, im_rgb]
+    im_4d = np.concatenate(im_4d, 2)
+    print("nir + rgb", im_4d.shape)
+    im_4d = np.asarray(im_4d, dtype=np.float32)
+    print(im_4d.shape)
+    return im_4d.copy()
 
-    test_dict = {
-        IDS: dict_list,
-        IMG: [
-            os.path.join(data_folder[name]["ROOT"], "test", data_folder[name][band])
-            for band in bands
-        ],
-        # GT: os.path.join(data_folder[name]['ROOT'], 'val', data_folder[name]['GT'])
-        # IMG: [[img_id.format(id) for img_id in img_ids] for id in test_ids]
-    }
-    return test_dict
+
+
+
+
+def preprocess_fusion_input(in_img, norm: bool = True, DEBUG: bool = True) -> np.array:
+    """
+
+    :param in_img:
+    :param norm:
+    :param DEBUG:
+    :return:
+    """
+    _img = np.asarray(in_img, dtype="float32")
+    if DEBUG: print("Input NumPy Shape:", _img.shape); print("Input NumPy Shape:".format(_img.shape))  # DEBUG
+    _img = st.ToTensor()(_img)
+    if DEBUG: print("Input Tensor Shape:", _img.shape);
+    print(
+        "Input Tensor Shape: {}".format(_img.shape))  # DEBUG
+    _img = _img / 255.0
+    # if DEBUG:
+    #     print("_img / 255 = ", img);
+    # print("_img / 255 = ", img)  # DEBUG# DEBUG
+    # if norm:
+    #     _img = st.Normalize(*mean_std)(img)
+    # print(f"normalizing image: {img}")
+    _im = _img.cpu().numpy().transpose(
+        (1, 2, 0))  # after applying the necessary transformations we go to 3-dims numpy 512,512,4... why?
+    return _im
+
+
+def preprocess_np_im_entry(entry: dict, scale: float = 1.0, DEBUG: bool = True, normalize: bool = True):
+    """
+
+    :param entry:
+    :param scale:
+    :param DEBUG:
+    :return:
+    """
+    im_rgb, im_nir, mask, bound = img_load(entry["rgb"], scale_rate=scale), \
+                                  img_load(entry["nir"], scale_rate=scale, gray=True), \
+                                  img_load(entry["masks"], gray=True, scale_rate=scale), \
+                                  img_load(entry["boundaries"], gray=True, scale_rate=scale)
+
+    # access and properly reshape
+    print("rgb", im_rgb.shape,  # H x W x C
+          "nir", im_nir.shape)  # DEBUG
+    # print("rgb", im_rgb)
+    # print("nir", im_nir)
+    # 512 x 512 or H x W
+    im_nir = np.expand_dims(im_nir, 2)  # expand along the 2 dimension
+    print("new nir", im_nir)
+    print("new nir shape", im_nir.shape)
+    im_4d = [im_nir, im_rgb]
+    rv = np.concatenate(im_4d, 2)
+    print("nir + rgb", rv.shape)
+    rv = np.asarray(rv, dtype=np.float32)
+
+    # im_rand = np.random.rand(512,512,1)
+    # print("pre-rand", im_rand.shape)
+    # im_rand = np.expand_dims(im_rand, 2)
+    # print("post-rand", im_rand.shape)
+    # return rv
+    # _img = np.asarray(in_img, dtype="float32")
+    # if DEBUG: print("Input NumPy Shape:", img.shape); print("Input NumPy Shape:".format(img.shape))  # DEBUG
+    rv = st.ToTensor()(rv)
+    # if DEBUG: print("Input Tensor Shape:", img.shape);
+    # print(
+    #     "Input Tensor Shape: {}".format(img.shape))  # DEBUG
+    rv = rv / 255.0
+    # # if DEBUG:
+    # #     print("_img / 255 = ", img);
+    # # print("_img / 255 = ", img)  # DEBUG# DEBUG
+    if normalize:
+        rv = st.Normalize(*MEAN_STD)(rv)
+    #     # print(f"normalizing image: {img}")
+    rv = rv.cpu().numpy().transpose(
+        (1, 2, 0))  # after applying the necessary transformations we go to 3-dims numpy 512,512,4... why?
+    print("final", rv.shape)
+
+    return rv
+
+
+
